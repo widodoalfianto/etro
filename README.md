@@ -2,16 +2,6 @@
 
 `etro` is a static, touch-first metronome app for live performance.
 
-## Why split files
-
-For Vercel hosting and long-term maintenance, separate files are better than one huge `index.html`:
-
-- Better browser caching (CSS/JS cached independently)
-- Easier edits and reviews
-- Cleaner debugging in DevTools
-
-The app is now split into HTML, CSS, and JS files.
-
 ## Project structure
 
 - `index.html` - app markup
@@ -54,25 +44,7 @@ No build step required.
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080`.
-
-## Deploy on Vercel (free tier)
-
-1. Push this repo to GitHub.
-2. In Vercel, click **Add New Project** and import the repo.
-3. Use these settings:
-   - Framework Preset: `Other`
-   - Build Command: leave empty
-   - Output Directory: leave empty (or `.`)
-4. Deploy.
-
-Each push to your connected branch will auto-deploy.
-
-## Social link
-
-Setlist footer currently links to:
-
-- GitHub: `https://github.com/widodoalfianto`
+Open `http://localhost:8080`
 
 ## Browser notes
 
