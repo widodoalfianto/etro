@@ -945,6 +945,10 @@
         function isAccentStepInBar(stepInBar, song, parsedSignature) {
           if (!song || !toBoolean(song.useAccents)) return false;
 
+          if (toBoolean(song.doubleTime) && stepInBar % 2 !== 0) {
+            return false;
+          }
+
           const beatNumber = toBoolean(song.doubleTime) ? Math.floor(stepInBar / 2) + 1 : stepInBar + 1;
           const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
           const accentBeats = normalizeAccentBeats(song.accentBeats, parsedSignature.beatsPerBar, defaultAccentBeats);
