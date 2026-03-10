@@ -10,19 +10,41 @@
 
 ## Contributing
 
-If you want to contribute:
-
 1. Fork the repo: `https://github.com/widodoalfianto/etro`
-2. Create a feature branch.
-3. Open a pull request with a clear summary of changes.
+2. Create a branch.
+3. Open a pull request with a clear summary.
 
 Bug reports and feature requests are also welcome in Issues.
+
+## PWA support
+
+`etro` is now configured as a Progressive Web App (PWA):
+
+- Installable on supported mobile and desktop browsers
+- Offline-capable after first load (core app shell cached)
+- Standalone app mode with theme color and app icons
+
+### PWA files
+
+- `manifest.json` - web app manifest
+- `sw.js` - service worker cache/offline logic
+- `assets/icons/` - app icons (`192`, `512`, `maskable`, Apple touch icon, favicon)
+
+### Install on device
+
+- Android (Chrome/Edge): open the site, then use **Install app** / **Add to Home screen**
+- iOS (Safari): open the site, tap **Share** -> **Add to Home Screen**
+- Desktop Chromium browsers: use the install icon in the address bar
+
+Note: service workers require HTTPS (or `localhost`). Vercel provides HTTPS by default.
 
 ## Project structure
 
 - `index.html` - app markup
 - `assets/css/styles.css` - app styles
 - `assets/js/app.js` - app logic and audio scheduler
+- `manifest.json` - PWA manifest
+- `sw.js` - PWA service worker
 - `.github/workflows/pages.yml` - optional GitHub Pages workflow
 
 ## Features
@@ -60,7 +82,7 @@ No build step required.
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080`
+Open `http://localhost:8080`.
 
 ## Browser notes
 

@@ -91,6 +91,15 @@
           confirmDeleteModalBtn: document.getElementById("confirmDeleteModalBtn")
         };
 
+        function registerServiceWorker() {
+          if (!("serviceWorker" in navigator)) return;
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("./sw.js").catch((error) => {
+              console.warn("Service worker registration failed", error);
+            });
+          });
+        }
+
         function parseTimeSignatureStrict(raw) {
           const match = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(raw || "");
           if (!match) {
@@ -1552,6 +1561,7 @@
         }
 
         function init() {
+          registerServiceWorker();
           applyDeviceModeClass();
           loadSongs();
           els.bpmRollerDial.style.transform = "rotate(-90deg)";
