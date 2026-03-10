@@ -341,7 +341,7 @@
                     type="button"
                     class="line-ui min-h-[3rem] rounded-lg px-3 text-sm font-black tracking-[0.04em] text-neutral-100 active:scale-[0.98]"
                   >
-                    DoubleTime
+                    Double Time
                   </button>
                 </div>
               </div>
@@ -537,14 +537,15 @@
         }
 
         function createDefaultSong() {
+          const defaultSignature = "4/4";
           return {
             id: makeId(),
             name: "",
             bpm: 120,
-            timeSignature: "4/4",
+            timeSignature: defaultSignature,
             useAccents: false,
             doubleTime: false,
-            accentBeats: [1]
+            accentBeats: getAccentBeatsForSignature(defaultSignature)
           };
         }
 
@@ -704,6 +705,15 @@
           return Array.from(deduped).sort((a, b) => a - b);
         }
 
+        function toBoolean(value) {
+          if (typeof value === "string") {
+            const normalized = value.trim().toLowerCase();
+            if (["true", "1", "yes", "on"].includes(normalized)) return true;
+            if (["false", "0", "no", "off", ""].includes(normalized)) return false;
+          }
+          return Boolean(value);
+        }
+
         function normalizeSong(song) {
           const parsed = parseTimeSignature(song.timeSignature);
           const defaultAccentBeats = getAccentBeatsForSignature(parsed.label);
@@ -712,8 +722,8 @@
             name: String(song.name || "").trim(),
             bpm: clampBpm(song.bpm),
             timeSignature: parsed.label,
-            useAccents: Boolean(song.useAccents),
-            doubleTime: Boolean(song.doubleTime),
+            useAccents: toBoolean(song.useAccents),
+            doubleTime: toBoolean(song.doubleTime),
             accentBeats: normalizeAccentBeats(song.accentBeats, parsed.beatsPerBar, defaultAccentBeats)
           };
         }
@@ -853,13 +863,13 @@
         }
 
         function isAccentStepInBar(stepInBar, song, parsedSignature) {
-          if (!song || !song.useAccents) return false;
+          if (!song || !toBoolean(song.useAccents)) return false;
 
-          if (song.doubleTime && stepInBar % 2 !== 0) {
+          if (toBoolean(song.doubleTime) && stepInBar % 2 !== 0) {
             return false;
           }
 
-          const beatNumber = song.doubleTime ? Math.floor(stepInBar / 2) + 1 : stepInBar + 1;
+          const beatNumber = toBoolean(song.doubleTime) ? Math.floor(stepInBar / 2) + 1 : stepInBar + 1;
           const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
           const accentBeats = normalizeAccentBeats(song.accentBeats, parsedSignature.beatsPerBar, defaultAccentBeats);
           return accentBeats.includes(beatNumber);
@@ -867,11 +877,11 @@
 
         function renderRhythmToggles(song, parsedSignature) {
           const hasSong = Boolean(song);
-          const useAccents = hasSong && song.useAccents;
-          const doubleTime = hasSong && song.doubleTime;
+          const useAccents = hasSong && toBoolean(song.useAccents);
+          const doubleTime = hasSong && toBoolean(song.doubleTime);
 
           els.accentToggleBtn.textContent = "Accent";
-          els.doubleTimeToggleBtn.textContent = "DoubleTime";
+          els.doubleTimeToggleBtn.textContent = "Double Time";
           els.accentToggleBtn.classList.toggle("is-active", useAccents);
           els.doubleTimeToggleBtn.classList.toggle("is-active", doubleTime);
           els.accentToggleBtn.setAttribute("aria-pressed", useAccents ? "true" : "false");
@@ -1195,8 +1205,12 @@
             state.songs = state.songs.map((song) => {
               if (song.id !== active.id) return song;
               const defaultAccentBeats = getAccentBeatsForSignature(nextLabel);
-              const nextAccentBeats = normalizeAccentBeats(song.accentBeats, strict.beatsPerBar, defaultAccentBeats);
-              return { ...song, timeSignature: nextLabel, accentBeats: nextAccentBeats };
+              return {
+                ...song,
+                timeSignature: nextLabel,
+                useAccents: false,
+                accentBeats: normalizeAccentBeats(defaultAccentBeats, strict.beatsPerBar, defaultAccentBeats)
+              };
             });
             saveSongs();
           }
@@ -1386,12 +1400,14 @@
         function updateActiveSongRhythmOptions(nextOptions) {
           const active = getActiveSong();
           if (!active) return false;
+          const activeUseAccents = toBoolean(active.useAccents);
+          const activeDoubleTime = toBoolean(active.doubleTime);
 
           const parsed = parseTimeSignature(active.timeSignature);
           const defaultAccentBeats = getAccentBeatsForSignature(parsed.label);
           const currentAccentBeats = normalizeAccentBeats(active.accentBeats, parsed.beatsPerBar, defaultAccentBeats);
-          const nextUseAccents = typeof nextOptions.useAccents === "boolean" ? nextOptions.useAccents : active.useAccents;
-          const nextDoubleTime = typeof nextOptions.doubleTime === "boolean" ? nextOptions.doubleTime : active.doubleTime;
+          const nextUseAccents = typeof nextOptions.useAccents === "boolean" ? nextOptions.useAccents : activeUseAccents;
+          const nextDoubleTime = typeof nextOptions.doubleTime === "boolean" ? nextOptions.doubleTime : activeDoubleTime;
           const nextAccentBeats =
             nextOptions.accentBeats === undefined
               ? currentAccentBeats
@@ -1400,7 +1416,7 @@
             currentAccentBeats.length === nextAccentBeats.length &&
             currentAccentBeats.every((beat, index) => beat === nextAccentBeats[index]);
 
-          if (nextUseAccents === active.useAccents && nextDoubleTime === active.doubleTime && accentBeatsUnchanged) {
+          if (nextUseAccents === activeUseAccents && nextDoubleTime === activeDoubleTime && accentBeatsUnchanged) {
             return false;
           }
 
@@ -1425,13 +1441,13 @@
         function toggleActiveSongAccents() {
           const active = getActiveSong();
           if (!active) return;
-          updateActiveSongRhythmOptions({ useAccents: !active.useAccents });
+          updateActiveSongRhythmOptions({ useAccents: !toBoolean(active.useAccents) });
         }
 
         function toggleActiveSongDoubleTime() {
           const active = getActiveSong();
           if (!active) return;
-          updateActiveSongRhythmOptions({ doubleTime: !active.doubleTime });
+          updateActiveSongRhythmOptions({ doubleTime: !toBoolean(active.doubleTime) });
         }
 
         function toggleActiveSongAccentBeat(beatNumber) {
@@ -1441,7 +1457,7 @@
           const parsed = parseTimeSignature(active.timeSignature);
           const defaultAccentBeats = getAccentBeatsForSignature(parsed.label);
           const currentAccentBeats = normalizeAccentBeats(active.accentBeats, parsed.beatsPerBar, defaultAccentBeats);
-          if (!active.useAccents) {
+          if (!toBoolean(active.useAccents)) {
             const nextAccentBeats = [...new Set([...currentAccentBeats, beatNumber])].sort((a, b) => a - b);
             updateActiveSongRhythmOptions({ useAccents: true, accentBeats: nextAccentBeats });
             return;
@@ -1451,6 +1467,11 @@
           const nextAccentBeats = hasBeat
             ? currentAccentBeats.filter((beat) => beat !== beatNumber)
             : [...currentAccentBeats, beatNumber].sort((a, b) => a - b);
+
+          if (nextAccentBeats.length === 0) {
+            updateActiveSongRhythmOptions({ useAccents: false, accentBeats: defaultAccentBeats });
+            return;
+          }
 
           updateActiveSongRhythmOptions({ useAccents: true, accentBeats: nextAccentBeats });
         }
@@ -1770,8 +1791,14 @@
           els.bpmMinus1Btn.addEventListener("click", () => adjustActiveBpm(-1));
           els.bpmPlus1Btn.addEventListener("click", () => adjustActiveBpm(1));
           els.bpmPlus10Btn.addEventListener("click", () => adjustActiveBpm(10));
-          els.accentToggleBtn.addEventListener("click", toggleActiveSongAccents);
-          els.doubleTimeToggleBtn.addEventListener("click", toggleActiveSongDoubleTime);
+          els.accentToggleBtn.addEventListener("click", (event) => {
+            toggleActiveSongAccents();
+            event.currentTarget.blur();
+          });
+          els.doubleTimeToggleBtn.addEventListener("click", (event) => {
+            toggleActiveSongDoubleTime();
+            event.currentTarget.blur();
+          });
           els.accentBeatButtons.addEventListener("click", (event) => {
             const button = event.target.closest("[data-accent-beat]");
             if (!button) return;
