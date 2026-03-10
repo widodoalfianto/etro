@@ -79,6 +79,63 @@
         box-shadow: 0 0 14px rgba(163, 230, 53, 0.45);
       }
 
+      @media (hover: none) {
+        #prevBtn.line-ui:hover,
+        #nextBtn.line-ui:hover,
+        #bpmMinus10Btn.line-ui:hover,
+        #bpmMinus1Btn.line-ui:hover,
+        #bpmPlus1Btn.line-ui:hover,
+        #bpmPlus10Btn.line-ui:hover,
+        #prevBtn.line-ui:focus-visible,
+        #nextBtn.line-ui:focus-visible,
+        #bpmMinus10Btn.line-ui:focus-visible,
+        #bpmMinus1Btn.line-ui:focus-visible,
+        #bpmPlus1Btn.line-ui:focus-visible,
+        #bpmPlus10Btn.line-ui:focus-visible {
+          background: transparent;
+          box-shadow: none;
+          color: rgb(229 229 229);
+          outline: none;
+        }
+
+        #prevBtn.line-ui:hover::after,
+        #nextBtn.line-ui:hover::after,
+        #bpmMinus10Btn.line-ui:hover::after,
+        #bpmMinus1Btn.line-ui:hover::after,
+        #bpmPlus1Btn.line-ui:hover::after,
+        #bpmPlus10Btn.line-ui:hover::after,
+        #prevBtn.line-ui:focus-visible::after,
+        #nextBtn.line-ui:focus-visible::after,
+        #bpmMinus10Btn.line-ui:focus-visible::after,
+        #bpmMinus1Btn.line-ui:focus-visible::after,
+        #bpmPlus1Btn.line-ui:focus-visible::after,
+        #bpmPlus10Btn.line-ui:focus-visible::after {
+          background: rgba(82, 82, 82, 0.95);
+          box-shadow: none;
+        }
+
+        #prevBtn.line-ui:active,
+        #nextBtn.line-ui:active,
+        #bpmMinus10Btn.line-ui:active,
+        #bpmMinus1Btn.line-ui:active,
+        #bpmPlus1Btn.line-ui:active,
+        #bpmPlus10Btn.line-ui:active {
+          background: rgba(163, 230, 53, 0.09);
+          box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.22) inset, 0 0 20px rgba(163, 230, 53, 0.2);
+          color: rgb(236 252 203);
+        }
+
+        #prevBtn.line-ui:active::after,
+        #nextBtn.line-ui:active::after,
+        #bpmMinus10Btn.line-ui:active::after,
+        #bpmMinus1Btn.line-ui:active::after,
+        #bpmPlus1Btn.line-ui:active::after,
+        #bpmPlus10Btn.line-ui:active::after {
+          background: rgba(163, 230, 53, 0.95);
+          box-shadow: 0 0 14px rgba(163, 230, 53, 0.45);
+        }
+      }
+
       #accentToggleBtn,
       #doubleTimeToggleBtn {
         touch-action: manipulation;
