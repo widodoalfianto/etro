@@ -1349,7 +1349,9 @@
           if (!state.songs.length) return;
           const currentIndex = state.songs.findIndex((song) => song.id === state.activeSongId);
           const safeIndex = currentIndex >= 0 ? currentIndex : 0;
-          const nextIndex = (safeIndex + direction + state.songs.length) % state.songs.length;
+          const maxIndex = state.songs.length - 1;
+          const nextIndex = Math.min(maxIndex, Math.max(0, safeIndex + direction));
+          if (nextIndex === safeIndex) return;
           selectSong(state.songs[nextIndex].id);
         }
 
