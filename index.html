@@ -944,12 +944,7 @@
 
         function isAccentStepInBar(stepInBar, song, parsedSignature) {
           if (!song || !toBoolean(song.useAccents)) return false;
-
-          if (toBoolean(song.doubleTime) && stepInBar % 2 !== 0) {
-            return false;
-          }
-
-          const beatNumber = toBoolean(song.doubleTime) ? Math.floor(stepInBar / 2) + 1 : stepInBar + 1;
+          const beatNumber = stepInBar + 1;
           const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
           const accentBeats = normalizeAccentBeats(song.accentBeats, parsedSignature.beatsPerBar, defaultAccentBeats);
           return accentBeats.includes(beatNumber);
@@ -1772,7 +1767,7 @@
 
           await ensureAudioContext();
           const parsed = parseTimeSignature(active.timeSignature);
-          state.activeBeatsPerBar = parsed.beatsPerBar * (active.doubleTime ? 2 : 1);
+          state.activeBeatsPerBar = parsed.beatsPerBar;
           state.currentBeat = 0;
           state.nextNoteTime = state.audioContext.currentTime + 0.05;
           state.isPlaying = true;
