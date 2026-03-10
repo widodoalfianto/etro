@@ -5,6 +5,7 @@
         const BPM_MIN = 0;
         const BPM_MAX = 240;
         const ALLOWED_CUSTOM_DENOMINATORS = [2, 4, 8, 16];
+        const SONG_TITLE_MAX_LENGTH = 18;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -44,7 +45,8 @@
           customSignaturePanelOpen: false,
           timeSignatureMenuOpen: false,
           titleEditSongId: null,
-          pendingDeleteSongId: null
+          pendingDeleteSongId: null,
+          songTitleLimitHintTimer: null
         };
 
         const lookaheadMs = 25;
@@ -53,6 +55,7 @@
         const els = {
           currentSongTitle: document.getElementById("currentSongTitle"),
           songTitleEditInput: document.getElementById("songTitleEditInput"),
+          songTitleLimitInfo: document.getElementById("songTitleLimitInfo"),
           timeSignatureLabel: document.getElementById("timeSignatureLabel"),
           timeSignatureMenu: document.getElementById("timeSignatureMenu"),
           bpmDisplay: document.getElementById("bpmDisplay"),
@@ -174,6 +177,35 @@
           }
         }
 
+        function clampSongTitleInput(rawValue) {
+          return String(rawValue || "").slice(0, SONG_TITLE_MAX_LENGTH);
+        }
+
+        function sanitizeSongName(rawValue) {
+          return clampSongTitleInput(rawValue).trim();
+        }
+
+        function hideSongTitleLimitInfo() {
+          if (state.songTitleLimitHintTimer !== null) {
+            window.clearTimeout(state.songTitleLimitHintTimer);
+            state.songTitleLimitHintTimer = null;
+          }
+          els.songTitleLimitInfo.classList.add("hidden");
+        }
+
+        function showSongTitleLimitInfo() {
+          if (!state.titleEditSongId) return;
+          if (state.songTitleLimitHintTimer !== null) {
+            window.clearTimeout(state.songTitleLimitHintTimer);
+            state.songTitleLimitHintTimer = null;
+          }
+          els.songTitleLimitInfo.classList.remove("hidden");
+          state.songTitleLimitHintTimer = window.setTimeout(() => {
+            els.songTitleLimitInfo.classList.add("hidden");
+            state.songTitleLimitHintTimer = null;
+          }, 1400);
+        }
+
         function normalizeAccentBeats(rawAccentBeats, beatsPerBar, fallbackBeats) {
           const maxBeats = Math.max(1, Number.parseInt(beatsPerBar, 10) || 1);
           const fallback = Array.isArray(fallbackBeats) && fallbackBeats.length ? fallbackBeats : [1];
@@ -204,7 +236,7 @@
           const defaultAccentBeats = getAccentBeatsForSignature(parsed.label);
           return {
             id: song.id || makeId(),
-            name: String(song.name || "").trim(),
+            name: sanitizeSongName(song.name),
             bpm: clampBpm(song.bpm),
             timeSignature: parsed.label,
             useAccents: toBoolean(song.useAccents),
@@ -283,7 +315,7 @@
         }
 
         function getSongTitleForMainView(song) {
-          const trimmed = String(song?.name || "").trim();
+          const trimmed = sanitizeSongName(song?.name || "");
           return {
             title: trimmed || "Untitled",
             isPlaceholder: trimmed.length === 0
@@ -462,7 +494,9 @@
           if (!active) return;
 
           state.titleEditSongId = active.id;
-          els.songTitleEditInput.value = active.name;
+          hideSongTitleLimitInfo();
+          els.songTitleEditInput.maxLength = SONG_TITLE_MAX_LENGTH;
+          els.songTitleEditInput.value = clampSongTitleInput(active.name);
           els.currentSongTitle.classList.add("hidden");
           els.songTitleEditInput.classList.remove("hidden");
 
@@ -477,7 +511,7 @@
           const isEditing = active && state.titleEditSongId === active.id;
 
           if (isEditing && commitChanges) {
-            const nextName = els.songTitleEditInput.value.trim();
+            const nextName = sanitizeSongName(els.songTitleEditInput.value);
             if (nextName !== active.name) {
               state.songs = state.songs.map((song) => {
                 if (song.id !== active.id) return song;
@@ -488,6 +522,7 @@
           }
 
           state.titleEditSongId = null;
+          hideSongTitleLimitInfo();
           els.songTitleEditInput.classList.add("hidden");
           els.currentSongTitle.classList.remove("hidden");
           renderAll();
@@ -589,6 +624,7 @@
 
           if (state.titleEditSongId !== active.id) {
             state.titleEditSongId = null;
+            hideSongTitleLimitInfo();
             els.currentSongTitle.classList.remove("hidden");
             els.songTitleEditInput.classList.add("hidden");
           }
@@ -603,6 +639,7 @@
             els.currentSongTitle.classList.toggle("text-neutral-100", !titleState.isPlaceholder);
             els.currentSongTitle.classList.remove("hidden");
             els.songTitleEditInput.classList.add("hidden");
+            hideSongTitleLimitInfo();
           }
 
           els.bpmDisplay.textContent = String(active.bpm);
@@ -682,10 +719,11 @@
           const listMarkup = state.songs
             .map((song) => {
               const isActive = song.id === activeId;
-              const title = String(song.name || "").trim();
+              const rawTitle = String(song.name || "").trim();
+              const title = rawTitle.length > SONG_TITLE_MAX_LENGTH ? `${rawTitle.slice(0, SONG_TITLE_MAX_LENGTH)}...` : rawTitle;
               const hasTitle = title.length > 0;
               const titleMarkup = hasTitle
-                ? `<span class="block text-base font-bold leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
+                ? `<span class="song-title block text-base font-black leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
                 : "";
               const signatureClass = hasTitle
                 ? `whitespace-nowrap text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
@@ -700,7 +738,7 @@
               return `
                 <article class="setlist-row" data-song-id="${song.id}">
                   <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left">
-                    <span class="pr-2">
+                    <span class="pr-2 min-w-0 flex-1">
                       ${titleMarkup}
                       <span class="${signatureRowClass}">
                         <span class="${signatureClass}">${song.timeSignature}</span>
@@ -1354,6 +1392,54 @@
             if (event.key === "Escape") {
               event.preventDefault();
               closeTitleEditor(false);
+              return;
+            }
+
+            const isTextKey =
+              event.key.length === 1 &&
+              !event.ctrlKey &&
+              !event.metaKey &&
+              !event.altKey;
+            if (!isTextKey) return;
+
+            const selectionStart = els.songTitleEditInput.selectionStart ?? els.songTitleEditInput.value.length;
+            const selectionEnd = els.songTitleEditInput.selectionEnd ?? els.songTitleEditInput.value.length;
+            const replacingLength = Math.max(0, selectionEnd - selectionStart);
+            const projectedLength = els.songTitleEditInput.value.length - replacingLength + 1;
+            if (projectedLength > SONG_TITLE_MAX_LENGTH) {
+              showSongTitleLimitInfo();
+            }
+          });
+          els.songTitleEditInput.addEventListener("beforeinput", (event) => {
+            const inputType = event.inputType || "";
+            if (!inputType.startsWith("insert")) return;
+
+            const currentValue = els.songTitleEditInput.value;
+            const selectionStart = els.songTitleEditInput.selectionStart ?? currentValue.length;
+            const selectionEnd = els.songTitleEditInput.selectionEnd ?? currentValue.length;
+            const replacingLength = Math.max(0, selectionEnd - selectionStart);
+            const insertedLength = event.data ? event.data.length : 1;
+            const projectedLength = currentValue.length - replacingLength + insertedLength;
+            if (projectedLength > SONG_TITLE_MAX_LENGTH) {
+              showSongTitleLimitInfo();
+            }
+          });
+          els.songTitleEditInput.addEventListener("paste", (event) => {
+            const pastedText = event.clipboardData ? event.clipboardData.getData("text") : "";
+            const currentValue = els.songTitleEditInput.value;
+            const selectionStart = els.songTitleEditInput.selectionStart ?? currentValue.length;
+            const selectionEnd = els.songTitleEditInput.selectionEnd ?? currentValue.length;
+            const replacingLength = Math.max(0, selectionEnd - selectionStart);
+            const projectedLength = currentValue.length - replacingLength + pastedText.length;
+            if (projectedLength > SONG_TITLE_MAX_LENGTH) {
+              showSongTitleLimitInfo();
+            }
+          });
+          els.songTitleEditInput.addEventListener("input", () => {
+            const clampedValue = clampSongTitleInput(els.songTitleEditInput.value);
+            if (clampedValue !== els.songTitleEditInput.value) {
+              els.songTitleEditInput.value = clampedValue;
+              showSongTitleLimitInfo();
             }
           });
           els.songTitleEditInput.addEventListener("blur", () => {

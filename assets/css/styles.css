@@ -6,6 +6,67 @@
         font-family: "Alliance No.2", "Alliance No.1", "Alliance 2", "Segoe UI", "Arial", sans-serif;
       }
 
+      /*
+       * Alliance CDN currently serves only light faces here, so use a mild
+       * synthetic stroke on key controls that must read as bold.
+       */
+      #accentToggleBtn,
+      #doubleTimeToggleBtn,
+      #setlistPanel h2,
+      #clearSetlistBtn,
+      #clearConfirmModal h3,
+      #deleteConfirmModal h3,
+      #clearConfirmModal button,
+      #deleteConfirmModal button,
+      #setlistContainer .song-title {
+        font-weight: 900 !important;
+        -webkit-text-stroke: 0.24px currentColor;
+        text-shadow: 0 0 0 currentColor;
+      }
+
+      #accentToggleBtn,
+      #doubleTimeToggleBtn {
+        font-size: 0.96rem;
+      }
+
+      #setlistPanel h2 {
+        font-size: 0.93rem;
+      }
+
+      #clearSetlistBtn {
+        font-size: 0.93rem;
+      }
+
+      #clearConfirmModal h3,
+      #deleteConfirmModal h3 {
+        font-size: 1.34rem;
+      }
+
+      #clearConfirmModal button,
+      #deleteConfirmModal button {
+        font-size: 0.95rem;
+      }
+
+      #setlistContainer .song-title {
+        font-size: 1.08rem;
+        line-height: 1.18;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .title-limit-dialog {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.36rem 0.56rem;
+        border-radius: 0.48rem;
+        border: 1px solid rgba(251, 191, 36, 0.52);
+        background: rgba(23, 23, 23, 0.96);
+        box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.16) inset, 0 8px 24px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(2px);
+      }
+
       .setlist-scroll::-webkit-scrollbar {
         width: 8px;
       }
@@ -131,6 +192,7 @@
       #accentToggleBtn,
       #doubleTimeToggleBtn {
         touch-action: manipulation;
+        font-weight: 900 !important;
       }
 
       #accentToggleBtn:not(.is-active):hover,
