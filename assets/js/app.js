@@ -7,7 +7,7 @@
         const ALLOWED_CUSTOM_DENOMINATORS = [2, 4, 8, 16];
         const SONG_TITLE_MAX_LENGTH = 18;
         const SHARE_HASH_KEY = "sl";
-        const SHARE_SCHEMA_VERSION = 1;
+        const SHARE_SCHEMA_VERSION = 2;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -49,7 +49,8 @@
           titleEditSongId: null,
           pendingDeleteSongId: null,
           songTitleLimitHintTimer: null,
-          shareModalStatusTimer: null
+          shareModalStatusTimer: null,
+          shareLink: ""
         };
 
         const lookaheadMs = 25;
@@ -98,7 +99,6 @@
           cancelDeleteModalBtn: document.getElementById("cancelDeleteModalBtn"),
           confirmDeleteModalBtn: document.getElementById("confirmDeleteModalBtn"),
           shareSetlistModal: document.getElementById("shareSetlistModal"),
-          shareLinkInput: document.getElementById("shareLinkInput"),
           shareModalStatus: document.getElementById("shareModalStatus"),
           closeShareModalBtn: document.getElementById("closeShareModalBtn"),
           copyShareLinkBtn: document.getElementById("copyShareLinkBtn"),
@@ -395,20 +395,81 @@
           return new TextDecoder().decode(bytes);
         }
 
+        function toCompactShareSong(song) {
+          const normalizedSong = normalizeSong(song || {});
+          const compactSong = {
+            b: normalizedSong.bpm,
+            t: normalizedSong.timeSignature
+          };
+
+          if (normalizedSong.name) {
+            compactSong.n = normalizedSong.name;
+          }
+
+          if (toBoolean(normalizedSong.useAccents)) {
+            compactSong.a = 1;
+          }
+
+          if (toBoolean(normalizedSong.doubleTime)) {
+            compactSong.d = 1;
+          }
+
+          const parsedSignature = parseTimeSignature(normalizedSong.timeSignature);
+          const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
+          const accentBeats = normalizeAccentBeats(
+            normalizedSong.accentBeats,
+            parsedSignature.beatsPerBar,
+            defaultAccentBeats
+          );
+          const normalizedDefaultAccentBeats = normalizeAccentBeats(
+            defaultAccentBeats,
+            parsedSignature.beatsPerBar,
+            defaultAccentBeats
+          );
+          const isDefaultAccentPattern =
+            accentBeats.length === normalizedDefaultAccentBeats.length &&
+            accentBeats.every((beat, index) => beat === normalizedDefaultAccentBeats[index]);
+
+          if (!isDefaultAccentPattern) {
+            compactSong.x = accentBeats;
+          }
+
+          return compactSong;
+        }
+
         function buildSharePayload() {
           const songs = state.songs.length ? state.songs.map((song) => normalizeSong(song)) : [createDefaultSong()];
-          const hasActiveSong = songs.some((song) => song.id === state.activeSongId);
-          const activeSongId = hasActiveSong ? state.activeSongId : songs[0].id;
+          const activeSongIndex = songs.findIndex((song) => song.id === state.activeSongId);
+          const compactSongs = songs.map((song) => toCompactShareSong(song));
+
           return {
             v: SHARE_SCHEMA_VERSION,
-            a: activeSongId,
-            s: songs
+            ai: activeSongIndex >= 0 ? activeSongIndex : 0,
+            s: compactSongs
           };
         }
 
         function encodeSharePayload(payload) {
           const payloadText = JSON.stringify(payload);
           return encodeBase64UrlUtf8(payloadText);
+        }
+
+        function normalizeImportedSong(rawSong) {
+          if (!rawSong || typeof rawSong !== "object") {
+            return normalizeSong({});
+          }
+
+          const nextSong = {
+            id: typeof rawSong.id === "string" && rawSong.id.trim() ? rawSong.id.trim() : makeId(),
+            name: rawSong.name ?? rawSong.n ?? "",
+            bpm: rawSong.bpm ?? rawSong.b,
+            timeSignature: rawSong.timeSignature ?? rawSong.t,
+            useAccents: rawSong.useAccents ?? rawSong.a,
+            doubleTime: rawSong.doubleTime ?? rawSong.d,
+            accentBeats: rawSong.accentBeats ?? rawSong.x
+          };
+
+          return normalizeSong(nextSong);
         }
 
         function normalizeImportedSetlistPayload(payload) {
@@ -423,7 +484,7 @@
 
           const seenIds = new Set();
           const songs = rawSongs
-            .map((rawSong) => normalizeSong(rawSong && typeof rawSong === "object" ? rawSong : {}))
+            .map((rawSong) => normalizeImportedSong(rawSong))
             .map((song) => {
               if (!seenIds.has(song.id)) {
                 seenIds.add(song.id);
@@ -444,9 +505,15 @@
               : typeof payload.activeSongId === "string"
                 ? payload.activeSongId
                 : "";
-          const activeSongId = songs.some((song) => song.id === rawActiveSongId)
-            ? rawActiveSongId
-            : songs[0].id;
+          const rawActiveSongIndex = Number.parseInt(payload.ai, 10);
+          const activeSongId =
+            Number.isFinite(rawActiveSongIndex) &&
+            rawActiveSongIndex >= 0 &&
+            rawActiveSongIndex < songs.length
+              ? songs[rawActiveSongIndex].id
+              : songs.some((song) => song.id === rawActiveSongId)
+                ? rawActiveSongId
+                : songs[0].id;
 
           return {
             ok: true,
@@ -576,8 +643,7 @@
         }
 
         function openShareSetlistModal() {
-          const shareLink = buildShareLink();
-          els.shareLinkInput.value = shareLink;
+          state.shareLink = buildShareLink();
           setShareModalStatus("");
 
           const canNativeShare = typeof navigator.share === "function";
@@ -585,20 +651,17 @@
           els.nativeShareLinkBtn.classList.toggle("hidden", !canNativeShare);
 
           showModal(els.shareSetlistModal);
-          requestAnimationFrame(() => {
-            els.shareLinkInput.focus();
-            els.shareLinkInput.select();
-          });
         }
 
         function closeShareSetlistModal() {
           hideModal(els.shareSetlistModal);
+          state.shareLink = "";
           clearShareModalStatusTimer();
           setShareModalStatus("");
         }
 
         function copyShareLink() {
-          const shareLink = els.shareLinkInput.value.trim();
+          const shareLink = (state.shareLink || buildShareLink()).trim();
           if (!shareLink) {
             setShareModalStatus("No export link available to copy.", "error");
             return;
@@ -606,9 +669,18 @@
 
           const fallbackCopy = () => {
             try {
-              els.shareLinkInput.focus();
-              els.shareLinkInput.select();
-              return document.execCommand("copy");
+              const tempField = document.createElement("textarea");
+              tempField.value = shareLink;
+              tempField.setAttribute("readonly", "");
+              tempField.style.position = "fixed";
+              tempField.style.top = "-9999px";
+              tempField.style.opacity = "0";
+              document.body.append(tempField);
+              tempField.focus();
+              tempField.select();
+              const copied = document.execCommand("copy");
+              tempField.remove();
+              return copied;
             } catch (error) {
               return false;
             }
@@ -639,7 +711,7 @@
         }
 
         async function nativeShareLink() {
-          const shareLink = els.shareLinkInput.value.trim();
+          const shareLink = (state.shareLink || buildShareLink()).trim();
           if (!shareLink) {
             setShareModalStatus("No export link available to send.", "error");
             return;
@@ -1981,12 +2053,6 @@
           els.closeShareModalBtn.addEventListener("click", closeShareSetlistModal);
           els.copyShareLinkBtn.addEventListener("click", copyShareLink);
           els.nativeShareLinkBtn.addEventListener("click", nativeShareLink);
-          els.shareLinkInput.addEventListener("focus", () => {
-            els.shareLinkInput.select();
-          });
-          els.shareLinkInput.addEventListener("click", () => {
-            els.shareLinkInput.select();
-          });
           els.cancelImportModalBtn.addEventListener("click", closeImportSetlistModal);
           els.confirmImportModalBtn.addEventListener("click", confirmImportSetlist);
           els.importSetlistInput.addEventListener("input", clearImportSetlistError);
