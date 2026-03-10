@@ -1,4 +1,4 @@
-const CACHE_NAME = "etro-cache-v1";
+const CACHE_NAME = "etro-cache-v2";
 
 const CORE_ASSETS = [
   "./",
@@ -55,6 +55,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
+  const url = new URL(request.url);
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -69,6 +70,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Same-origin files use network-first so app updates are picked up quickly.
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && (response.ok || response.type === "opaque")) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // Cross-origin assets (CDN script/fonts) use cache-first.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

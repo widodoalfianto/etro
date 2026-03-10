@@ -688,19 +688,24 @@
                 ? `<span class="block text-base font-bold leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
                 : "";
               const signatureClass = hasTitle
-                ? `block text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
-                : `block text-sm font-semibold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
+                ? `whitespace-nowrap text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
+                : `whitespace-nowrap text-sm font-semibold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
+              const signatureRowClass = hasTitle
+                ? "mt-1 flex items-center gap-1.5 flex-nowrap"
+                : "flex items-center gap-1.5 flex-nowrap";
               const accentPill = song.useAccents ? '<span class="song-pill song-pill-accent" title="Accented beats">A</span>' : "";
               const doublePill = song.doubleTime ? '<span class="song-pill song-pill-double" title="Double time">D</span>' : "";
-              const optionPills = accentPill || doublePill ? `<span class="mt-1.5 flex gap-1">${accentPill}${doublePill}</span>` : "";
+              const optionPills = accentPill || doublePill ? `<span class="flex shrink-0 items-center gap-1 flex-nowrap">${accentPill}${doublePill}</span>` : "";
 
               return `
                 <article class="setlist-row" data-song-id="${song.id}">
                   <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left">
                     <span class="pr-2">
                       ${titleMarkup}
-                      <span class="${signatureClass}">${song.timeSignature}</span>
-                      ${optionPills}
+                      <span class="${signatureRowClass}">
+                        <span class="${signatureClass}">${song.timeSignature}</span>
+                        ${optionPills}
+                      </span>
                     </span>
                     <span class="text-xl font-black ${isActive ? "text-lime-300" : "text-neutral-200"}">${song.bpm}</span>
                   </button>
