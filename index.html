@@ -84,6 +84,8 @@
         touch-action: manipulation;
       }
 
+      #accentToggleBtn:not(.is-active):hover,
+      #doubleTimeToggleBtn:not(.is-active):hover,
       #accentToggleBtn:focus-visible:not(.is-active),
       #doubleTimeToggleBtn:focus-visible:not(.is-active) {
         background: transparent;
@@ -91,6 +93,8 @@
         color: rgb(229 229 229);
       }
 
+      #accentToggleBtn:not(.is-active):hover::after,
+      #doubleTimeToggleBtn:not(.is-active):hover::after,
       #accentToggleBtn:focus-visible:not(.is-active)::after,
       #doubleTimeToggleBtn:focus-visible:not(.is-active)::after {
         background: rgba(82, 82, 82, 0.95);
@@ -1468,21 +1472,6 @@
           updateActiveSongRhythmOptions({ doubleTime: !toBoolean(active.doubleTime) });
         }
 
-        function createRhythmToggleInteractionHandler(toggleFn) {
-          return (event) => {
-            if (event.type === "click" && event.detail !== 0) return;
-            if (event.type === "pointerup") {
-              event.preventDefault();
-            }
-
-            toggleFn();
-
-            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
-              event.currentTarget.blur();
-            }
-          };
-        }
-
         function toggleActiveSongAccentBeat(beatNumber) {
           const active = getActiveSong();
           if (!active) return;
@@ -1824,12 +1813,20 @@
           els.bpmMinus1Btn.addEventListener("click", () => adjustActiveBpm(-1));
           els.bpmPlus1Btn.addEventListener("click", () => adjustActiveBpm(1));
           els.bpmPlus10Btn.addEventListener("click", () => adjustActiveBpm(10));
-          const accentToggleHandler = createRhythmToggleInteractionHandler(toggleActiveSongAccents);
-          const doubleTimeToggleHandler = createRhythmToggleInteractionHandler(toggleActiveSongDoubleTime);
-          els.accentToggleBtn.addEventListener("pointerup", accentToggleHandler);
-          els.accentToggleBtn.addEventListener("click", accentToggleHandler);
-          els.doubleTimeToggleBtn.addEventListener("pointerup", doubleTimeToggleHandler);
-          els.doubleTimeToggleBtn.addEventListener("click", doubleTimeToggleHandler);
+          els.accentToggleBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            toggleActiveSongAccents();
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.doubleTimeToggleBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            toggleActiveSongDoubleTime();
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
           els.accentBeatButtons.addEventListener("click", (event) => {
             const button = event.target.closest("[data-accent-beat]");
             if (!button) return;
