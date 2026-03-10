@@ -109,6 +109,20 @@
         font-weight: 500 !important;
       }
 
+      #bpmAdjustRow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+        flex-wrap: nowrap;
+      }
+
+      .bpm-side-stack {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+      }
+
       #currentSongTitle.line-ui::after {
         bottom: -0.25rem;
       }
@@ -249,6 +263,37 @@
       .mobile-mode #bpmRoller {
         width: 8.8rem;
         height: 8.8rem;
+      }
+
+      .mobile-mode #bpmAdjustRow {
+        width: 100%;
+        max-width: 30rem;
+        margin-left: auto;
+        margin-right: auto;
+        display: grid;
+        grid-template-columns: minmax(5.2rem, 1fr) auto minmax(5.2rem, 1fr);
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      .mobile-mode .bpm-side-stack {
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+      }
+
+      .mobile-mode .bpm-minus-stack {
+        flex-direction: column-reverse;
+      }
+
+      .mobile-mode .bpm-side-stack .bpm-adjust-btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 3.85rem;
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+        text-align: center;
       }
 
       .mobile-mode #transportControlsRow button {
@@ -465,21 +510,23 @@
                   ⏭
                 </button>
               </div>
-              <div class="mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                <button
-                  id="bpmMinus10Btn"
-                  type="button"
-                  class="line-ui bpm-adjust-btn min-h-[3.4rem] min-w-[4.6rem] rounded-xl px-3 text-base text-neutral-100 active:scale-[0.98]"
-                >
-                  -10
-                </button>
-                <button
-                  id="bpmMinus1Btn"
-                  type="button"
-                  class="line-ui bpm-adjust-btn min-h-[3.4rem] min-w-[4.6rem] rounded-xl px-3 text-base text-neutral-100 active:scale-[0.98]"
-                >
-                  -1
-                </button>
+              <div id="bpmAdjustRow" class="mt-5">
+                <div class="bpm-side-stack bpm-minus-stack">
+                  <button
+                    id="bpmMinus10Btn"
+                    type="button"
+                    class="line-ui bpm-adjust-btn min-h-[3.4rem] min-w-[4.6rem] rounded-xl px-3 text-base text-neutral-100 active:scale-[0.98]"
+                  >
+                    -10
+                  </button>
+                  <button
+                    id="bpmMinus1Btn"
+                    type="button"
+                    class="line-ui bpm-adjust-btn min-h-[3.4rem] min-w-[4.6rem] rounded-xl px-3 text-base text-neutral-100 active:scale-[0.98]"
+                  >
+                    -1
+                  </button>
+                </div>
                 <div
                   id="bpmRoller"
                   role="slider"
@@ -496,20 +543,22 @@
                     <div class="absolute left-1/2 top-[0.32rem] h-[1.35rem] w-[0.2rem] -translate-x-1/2 rounded-sm bg-lime-300"></div>
                   </div>
                 </div>
-                <button
-                  id="bpmPlus1Btn"
-                  type="button"
-                  class="line-ui bpm-adjust-btn min-h-[4.6rem] min-w-[5.8rem] rounded-xl px-4 text-lg text-neutral-100 active:scale-[0.98]"
-                >
-                  +1
-                </button>
-                <button
-                  id="bpmPlus10Btn"
-                  type="button"
-                  class="line-ui bpm-adjust-btn min-h-[4.6rem] min-w-[5.8rem] rounded-xl px-4 text-lg text-neutral-100 active:scale-[0.98]"
-                >
-                  +10
-                </button>
+                <div class="bpm-side-stack">
+                  <button
+                    id="bpmPlus1Btn"
+                    type="button"
+                    class="line-ui bpm-adjust-btn min-h-[4.6rem] min-w-[5.8rem] rounded-xl px-4 text-lg text-neutral-100 active:scale-[0.98]"
+                  >
+                    +1
+                  </button>
+                  <button
+                    id="bpmPlus10Btn"
+                    type="button"
+                    class="line-ui bpm-adjust-btn min-h-[4.6rem] min-w-[5.8rem] rounded-xl px-4 text-lg text-neutral-100 active:scale-[0.98]"
+                  >
+                    +10
+                  </button>
+                </div>
               </div>
               <div id="accentMapPanel" class="mx-auto mt-4 w-full max-w-xl">
                 <div id="accentBeatButtons" class="flex w-full flex-wrap items-center justify-center gap-2.5"></div>
