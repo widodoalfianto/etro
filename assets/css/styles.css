@@ -1,0 +1,439 @@
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        font-family: "Alliance No.2", "Alliance No.1", "Alliance 2", "Segoe UI", "Arial", sans-serif;
+      }
+
+      .setlist-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .setlist-scroll::-webkit-scrollbar-thumb {
+        background: rgba(132, 204, 22, 0.5);
+        border-radius: 999px;
+      }
+
+      .bpm-roller {
+        touch-action: none;
+        user-select: none;
+      }
+
+      .bpm-dial-indicator {
+        left: 50%;
+        top: 50%;
+        width: 0.22rem;
+        height: 50%;
+        transform: translate(-50%, -100%);
+        border-radius: 999px;
+        background: rgb(190 242 100);
+      }
+
+      #bpmRollerProgress {
+        background: conic-gradient(from -90deg, rgba(163, 230, 53, 1) 0deg, rgba(38, 38, 38, 1) 0deg);
+      }
+
+      .line-ui {
+        position: relative;
+        border: 0;
+        background: transparent;
+        color: rgb(229 229 229);
+        font-weight: 800;
+        transition: background-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+      }
+
+      .line-ui::after {
+        content: "";
+        position: absolute;
+        left: 0.2rem;
+        right: 0.2rem;
+        bottom: 0.15rem;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(82, 82, 82, 0.95);
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      .line-ui:hover,
+      .line-ui:focus-visible,
+      .line-ui.is-active {
+        background: rgba(163, 230, 53, 0.09);
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.22) inset, 0 0 20px rgba(163, 230, 53, 0.2);
+        color: rgb(236 252 203);
+        outline: none;
+      }
+
+      .line-ui:hover::after,
+      .line-ui:focus-visible::after,
+      .line-ui.is-active::after {
+        background: rgba(163, 230, 53, 0.95);
+        box-shadow: 0 0 14px rgba(163, 230, 53, 0.45);
+      }
+
+      @media (hover: none) {
+        #prevBtn.line-ui:hover,
+        #nextBtn.line-ui:hover,
+        #bpmMinus10Btn.line-ui:hover,
+        #bpmMinus1Btn.line-ui:hover,
+        #bpmPlus1Btn.line-ui:hover,
+        #bpmPlus10Btn.line-ui:hover,
+        #prevBtn.line-ui:focus-visible,
+        #nextBtn.line-ui:focus-visible,
+        #bpmMinus10Btn.line-ui:focus-visible,
+        #bpmMinus1Btn.line-ui:focus-visible,
+        #bpmPlus1Btn.line-ui:focus-visible,
+        #bpmPlus10Btn.line-ui:focus-visible {
+          background: transparent;
+          box-shadow: none;
+          color: rgb(229 229 229);
+          outline: none;
+        }
+
+        #prevBtn.line-ui:hover::after,
+        #nextBtn.line-ui:hover::after,
+        #bpmMinus10Btn.line-ui:hover::after,
+        #bpmMinus1Btn.line-ui:hover::after,
+        #bpmPlus1Btn.line-ui:hover::after,
+        #bpmPlus10Btn.line-ui:hover::after,
+        #prevBtn.line-ui:focus-visible::after,
+        #nextBtn.line-ui:focus-visible::after,
+        #bpmMinus10Btn.line-ui:focus-visible::after,
+        #bpmMinus1Btn.line-ui:focus-visible::after,
+        #bpmPlus1Btn.line-ui:focus-visible::after,
+        #bpmPlus10Btn.line-ui:focus-visible::after {
+          background: rgba(82, 82, 82, 0.95);
+          box-shadow: none;
+        }
+
+        #prevBtn.line-ui:active,
+        #nextBtn.line-ui:active,
+        #bpmMinus10Btn.line-ui:active,
+        #bpmMinus1Btn.line-ui:active,
+        #bpmPlus1Btn.line-ui:active,
+        #bpmPlus10Btn.line-ui:active {
+          background: rgba(163, 230, 53, 0.09);
+          box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.22) inset, 0 0 20px rgba(163, 230, 53, 0.2);
+          color: rgb(236 252 203);
+        }
+
+        #prevBtn.line-ui:active::after,
+        #nextBtn.line-ui:active::after,
+        #bpmMinus10Btn.line-ui:active::after,
+        #bpmMinus1Btn.line-ui:active::after,
+        #bpmPlus1Btn.line-ui:active::after,
+        #bpmPlus10Btn.line-ui:active::after {
+          background: rgba(163, 230, 53, 0.95);
+          box-shadow: 0 0 14px rgba(163, 230, 53, 0.45);
+        }
+      }
+
+      #accentToggleBtn,
+      #doubleTimeToggleBtn {
+        touch-action: manipulation;
+      }
+
+      #accentToggleBtn:not(.is-active):hover,
+      #doubleTimeToggleBtn:not(.is-active):hover,
+      #accentToggleBtn:focus-visible:not(.is-active),
+      #doubleTimeToggleBtn:focus-visible:not(.is-active) {
+        background: transparent;
+        box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.32) inset;
+        color: rgb(229 229 229);
+      }
+
+      #accentToggleBtn:not(.is-active):hover::after,
+      #doubleTimeToggleBtn:not(.is-active):hover::after,
+      #accentToggleBtn:focus-visible:not(.is-active)::after,
+      #doubleTimeToggleBtn:focus-visible:not(.is-active)::after {
+        background: rgba(82, 82, 82, 0.95);
+        box-shadow: none;
+      }
+
+      #accentToggleBtn.is-active {
+        background: rgba(45, 212, 191, 0.14);
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.38) inset, 0 0 20px rgba(45, 212, 191, 0.26);
+        color: rgb(153 246 228);
+      }
+
+      #accentToggleBtn.is-active::after {
+        background: rgba(45, 212, 191, 0.96);
+        box-shadow: 0 0 14px rgba(45, 212, 191, 0.45);
+      }
+
+      #doubleTimeToggleBtn.is-active {
+        background: rgba(251, 146, 60, 0.16);
+        box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.42) inset, 0 0 20px rgba(251, 146, 60, 0.28);
+        color: rgb(254 215 170);
+      }
+
+      #doubleTimeToggleBtn.is-active::after {
+        background: rgba(251, 146, 60, 0.96);
+        box-shadow: 0 0 14px rgba(251, 146, 60, 0.45);
+      }
+
+      .line-ui:disabled {
+        opacity: 0.45;
+      }
+
+      .bpm-adjust-btn {
+        font-weight: 500 !important;
+      }
+
+      #bpmAdjustRow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+        flex-wrap: nowrap;
+      }
+
+      .bpm-side-stack {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+      }
+
+      #currentSongTitle.line-ui::after {
+        bottom: -0.25rem;
+      }
+
+      .setlist-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0.5rem;
+      }
+
+      .song-pill {
+        display: inline-flex;
+        min-height: 1.1rem;
+        min-width: 1.1rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(163, 230, 53, 0.55);
+        background: rgba(163, 230, 53, 0.12);
+        color: rgb(190 242 100);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+      }
+
+      .song-pill-accent {
+        border-color: rgba(45, 212, 191, 0.6);
+        background: rgba(45, 212, 191, 0.14);
+        color: rgb(153 246 228);
+      }
+
+      .song-pill-double {
+        border-color: rgba(251, 146, 60, 0.65);
+        background: rgba(251, 146, 60, 0.15);
+        color: rgb(254 215 170);
+      }
+
+      .accent-beat-btn.line-ui::after {
+        left: 0.35rem;
+        right: 0.35rem;
+        bottom: 0.24rem;
+      }
+
+      .custom-step-btn.line-ui::after {
+        left: 0.35rem;
+        right: 0.35rem;
+      }
+
+      .accent-beat-btn.is-selected {
+        color: rgb(94 234 212);
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.34) inset;
+      }
+
+      .accent-beat-btn.is-selected::after {
+        background: rgba(45, 212, 191, 0.95);
+        box-shadow: 0 0 12px rgba(45, 212, 191, 0.38);
+      }
+
+      .accent-map-disabled {
+        opacity: 1;
+      }
+
+      .accent-map-disabled .accent-beat-btn.line-ui {
+        color: rgb(163 163 163);
+      }
+
+      .accent-map-disabled .accent-beat-btn.line-ui::after {
+        background: rgba(82, 82, 82, 0.85);
+        box-shadow: none;
+      }
+
+      .accent-map-disabled .accent-beat-btn.is-selected {
+        color: rgb(94 234 212);
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.22) inset;
+      }
+
+      .accent-map-disabled .accent-beat-btn.is-selected::after {
+        background: rgba(45, 212, 191, 0.78);
+        box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+      }
+
+      .accent-beat-btn.is-current-beat {
+        background: rgba(163, 230, 53, 0.2) !important;
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.36) inset, 0 0 20px rgba(163, 230, 53, 0.35) !important;
+        color: rgb(236 252 203) !important;
+      }
+
+      .accent-beat-btn.is-current-beat::after {
+        background: rgba(163, 230, 53, 0.98) !important;
+        box-shadow: 0 0 14px rgba(163, 230, 53, 0.48) !important;
+      }
+
+      .accent-beat-btn.is-current-accent {
+        background: rgba(45, 212, 191, 0.22) !important;
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.4) inset, 0 0 20px rgba(45, 212, 191, 0.4) !important;
+        color: rgb(204 251 241) !important;
+      }
+
+      .accent-beat-btn.is-current-accent::after {
+        background: rgba(45, 212, 191, 0.98) !important;
+        box-shadow: 0 0 14px rgba(45, 212, 191, 0.5) !important;
+      }
+
+      .add-song-solid {
+        display: inline-flex;
+        min-height: 2.8rem;
+        min-width: 4.8rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(163, 230, 53, 0.85);
+        background: rgb(163 230 53);
+        color: rgb(10 10 10);
+        font-size: 1.8rem;
+        font-weight: 900;
+        line-height: 1;
+        padding: 0 0.75rem;
+        transition: transform 100ms ease, box-shadow 120ms ease, filter 120ms ease;
+      }
+
+      .add-song-solid.line-ui::after {
+        content: none;
+        display: none;
+      }
+
+      .add-song-solid .add-plus-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        display: block;
+        flex: none;
+      }
+
+      .add-song-solid:hover,
+      .add-song-solid:focus-visible {
+        filter: brightness(1.06);
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.4) inset, 0 0 18px rgba(163, 230, 53, 0.32);
+        outline: none;
+      }
+
+      .add-song-solid:active {
+        transform: scale(0.98);
+      }
+
+      .setlist-social-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.35rem;
+        min-height: 2.2rem;
+        padding: 0.2rem;
+        border-radius: 0.5rem;
+      }
+
+      .setlist-social-link svg {
+        width: 1.02rem;
+        height: 1.02rem;
+      }
+
+      .danger-line-ui:hover,
+      .danger-line-ui:focus-visible,
+      .danger-line-ui.is-active {
+        background: rgba(248, 113, 113, 0.11);
+        box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.3) inset, 0 0 18px rgba(248, 113, 113, 0.24);
+        color: rgb(254 202 202);
+        outline: none;
+      }
+
+      .danger-line-ui:hover::after,
+      .danger-line-ui:focus-visible::after,
+      .danger-line-ui.is-active::after {
+        background: rgba(248, 113, 113, 0.92);
+        box-shadow: 0 0 12px rgba(248, 113, 113, 0.38);
+      }
+
+      .mobile-mode .app-shell {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+      }
+
+      .mobile-mode #livePanel {
+        min-height: 68vh;
+        border-radius: 1.1rem;
+      }
+
+      .mobile-mode #setlistPanel {
+        min-height: 22vh;
+        border-radius: 1.1rem;
+      }
+
+      .mobile-mode #currentSongTitle {
+        font-size: clamp(1.8rem, 7.8vw, 3rem);
+      }
+
+      .mobile-mode #timeSignatureLabel {
+        min-height: 4rem;
+        min-width: 4rem;
+        font-size: clamp(1.55rem, 6.5vw, 2.2rem);
+      }
+
+      .mobile-mode #bpmDisplay {
+        font-size: clamp(5rem, 33vw, 10rem);
+      }
+
+      .mobile-mode #bpmRoller {
+        width: 8.8rem;
+        height: 8.8rem;
+      }
+
+      .mobile-mode #bpmAdjustRow {
+        width: 100%;
+        max-width: 30rem;
+        margin-left: auto;
+        margin-right: auto;
+        display: grid;
+        grid-template-columns: minmax(5.2rem, 1fr) auto minmax(5.2rem, 1fr);
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      .mobile-mode .bpm-side-stack {
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+      }
+
+      .mobile-mode .bpm-minus-stack {
+        flex-direction: column-reverse;
+      }
+
+      .mobile-mode .bpm-side-stack .bpm-adjust-btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 3.85rem;
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+        text-align: center;
+      }
+
+      .mobile-mode #transportControlsRow button {
+        min-height: 4.9rem;
+      }

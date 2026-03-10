@@ -1,39 +1,54 @@
 # etro
 
-Single-page metronome app for live performance.
+`etro` is a static, touch-first metronome app for live performance.
 
-`etro` is a static HTML app with no build step, designed for touch-first live use.
+## Why split files
+
+For Vercel hosting and long-term maintenance, separate files are better than one huge `index.html`:
+
+- Better browser caching (CSS/JS cached independently)
+- Easier edits and reviews
+- Cleaner debugging in DevTools
+
+The app is now split into HTML, CSS, and JS files.
+
+## Project structure
+
+- `index.html` - app markup
+- `assets/css/styles.css` - app styles
+- `assets/js/app.js` - app logic and audio scheduler
+- `.github/workflows/pages.yml` - optional GitHub Pages workflow
 
 ## Features
 
-- High-precision metronome timing using Web Audio API scheduling (`currentTime` pattern, no `setInterval`)
-- Setlist with add, select, delete, and reset
+- Web Audio `currentTime` scheduler (no `setInterval`) for stable timing
+- Setlist with add, select, delete, reset
 - Per-song settings:
-  - Optional title (`Untitled` shown in main view when empty)
-  - BPM (`0` to `240`)
-  - Time signature (`4/4`, `6/8`, `3/4`, custom)
+  - Optional title
+  - BPM `0-240`
+  - Time signatures: `4/4`, `6/8`, `3/4`, custom
   - Accent toggle + editable accent map
-  - DoubleTime toggle
-- Persistence in `localStorage` (with legacy cookie migration support)
-- Wake Lock while playing (when browser/device allows it)
+  - Double Time toggle
+- Persistent data in `localStorage`
+- Wake Lock while playing (when supported)
 - Mobile-responsive dark UI
 
-## Default State
+## Default state
 
-When first loaded, or after reset:
+On first load and after reset:
 
 - 1 song
-- title empty (`Untitled` shown in main view)
+- Empty title (shown as `Untitled` in main view)
 - BPM `120`
-- time signature `4/4`
+- Time signature `4/4`
 - Accent off
-- DoubleTime off
+- Double Time off
 
-The setlist never stays empty. Deleting the last song resets to default.
+The setlist never stays empty.
 
-## Run Locally
+## Local run
 
-No build required.
+No build step required.
 
 ```bash
 python3 -m http.server 8080
@@ -41,40 +56,25 @@ python3 -m http.server 8080
 
 Open `http://localhost:8080`.
 
-## GitHub Pages via GitHub Actions
-
-This repo uses:
-
-- [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
-
-### One-time setup in GitHub
+## Deploy on Vercel (free tier)
 
 1. Push this repo to GitHub.
-2. Open `Settings` -> `Pages`.
-3. Under **Build and deployment**, set **Source** to `GitHub Actions`.
-4. Open `Settings` -> `Actions` -> `General` and confirm actions are allowed for this repo.
+2. In Vercel, click **Add New Project** and import the repo.
+3. Use these settings:
+   - Framework Preset: `Other`
+   - Build Command: leave empty
+   - Output Directory: leave empty (or `.`)
+4. Deploy.
 
-### Deploy
+Each push to your connected branch will auto-deploy.
 
-1. Push to `main`.
-2. Go to `Actions` and watch `Deploy GitHub Pages`.
-3. After success, your site URL is:
-   - `https://<username>.github.io/<repo>/`
+## Social link
 
-If the repository name is `<username>.github.io`, URL is:
+Setlist footer currently links to:
 
-- `https://<username>.github.io/`
+- GitHub: `https://github.com/widodoalfianto`
 
-## What Else You Need To Launch
+## Browser notes
 
-If `pages.yml` is already committed, only these remain:
-
-1. Ensure repo is on GitHub and `main` is pushed.
-2. Set Pages source to `GitHub Actions`.
-3. Push one commit (or run workflow manually from `Actions`).
-4. Wait for green workflow run, then open the Pages URL.
-
-## Browser Notes
-
-- Wake Lock support varies by browser/device.
-- Audio starts only after user interaction due to browser autoplay policy.
+- Audio starts after user interaction (browser autoplay policy)
+- Wake Lock support depends on browser/device
