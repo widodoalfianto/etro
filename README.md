@@ -2,6 +2,22 @@
 
 `etro` is a static, touch-first metronome app for live performance.
 
+## Project stance
+
+- `etro` is a non-commercial project.
+- `etro` is open source.
+- Contributions are welcome.
+
+## Contributing
+
+If you want to contribute:
+
+1. Fork the repo: `https://github.com/widodoalfianto/etro`
+2. Create a feature branch.
+3. Open a pull request with a clear summary of changes.
+
+Bug reports and feature requests are also welcome in Issues.
+
 ## Project structure
 
 - `index.html` - app markup
