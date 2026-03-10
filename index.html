@@ -271,39 +271,40 @@
 
           <div class="relative z-10 flex h-full flex-col justify-between gap-6 sm:gap-8">
             <header>
-              <p class="text-xs font-semibold uppercase tracking-[0.32em] text-lime-400/80">Live Mode</p>
-              <div class="mt-2">
-                <button
-                  id="currentSongTitle"
-                  type="button"
-                  class="line-ui inline-block max-w-full rounded-xl px-1.5 py-1.5 text-left text-4xl font-black leading-tight sm:text-5xl"
-                >
-                  No Song Selected
-                </button>
-                <input
-                  id="songTitleEditInput"
-                  type="text"
-                  maxlength="80"
-                  placeholder="Untitled"
-                  class="hidden w-full rounded-xl border border-lime-400/80 bg-neutral-950 px-3 py-2 text-3xl font-black text-neutral-100 outline-none ring-lime-400 focus:ring sm:text-4xl"
-                />
-              </div>
-              <div class="mt-4 flex items-start justify-between gap-3">
-                <div class="relative inline-block">
-                  <button
-                    id="timeSignatureLabel"
-                    type="button"
-                    aria-haspopup="true"
-                    aria-expanded="false"
-                    class="line-ui inline-flex min-h-[4.2rem] min-w-[4.2rem] items-center justify-center rounded-xl px-3 py-2 text-center text-3xl font-black tracking-tight text-neutral-100"
-                  >
-                    4/4
-                  </button>
-                  <div
-                    id="timeSignatureMenu"
-                    class="absolute left-0 top-full z-20 mt-2 hidden rounded-xl border border-neutral-700 bg-neutral-900/95 p-4 shadow-xl"
-                    style="width: min(24rem, calc(100vw - 2.5rem));"
-                  >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div>
+                    <button
+                      id="currentSongTitle"
+                      type="button"
+                      class="line-ui inline-block max-w-full rounded-xl px-1.5 py-1.5 text-left text-4xl font-black leading-tight sm:text-5xl"
+                    >
+                      No Song Selected
+                    </button>
+                    <input
+                      id="songTitleEditInput"
+                      type="text"
+                      maxlength="80"
+                      placeholder="Untitled"
+                      class="hidden w-full rounded-xl border border-lime-400/80 bg-neutral-950 px-3 py-2 text-3xl font-black text-neutral-100 outline-none ring-lime-400 focus:ring sm:text-4xl"
+                    />
+                  </div>
+                  <div class="mt-3">
+                    <div class="relative inline-block">
+                      <button
+                        id="timeSignatureLabel"
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        class="line-ui inline-flex min-h-[4.2rem] min-w-[4.2rem] items-center justify-center rounded-xl px-3 py-2 text-center text-3xl font-black tracking-tight text-neutral-100"
+                      >
+                        4/4
+                      </button>
+                      <div
+                        id="timeSignatureMenu"
+                        class="absolute left-0 top-full z-20 mt-2 hidden rounded-xl border border-neutral-700 bg-neutral-900/95 p-4 shadow-xl"
+                        style="width: min(24rem, calc(100vw - 2.5rem));"
+                      >
                     <div class="grid grid-cols-2 gap-3">
                       <button
                         id="ts44Btn"
@@ -408,9 +409,11 @@
                       </button>
                       <p id="customSignatureError" class="mt-2 hidden text-xs font-semibold text-red-400"></p>
                     </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="flex w-36 flex-col gap-2">
+                <div class="flex w-36 shrink-0 flex-col gap-2">
                   <button
                     id="accentToggleBtn"
                     type="button"
@@ -436,6 +439,32 @@
               >
                 120
               </p>
+              <div id="transportControlsRow" class="grid grid-cols-3 gap-3">
+                <button
+                  id="prevBtn"
+                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
+                  type="button"
+                  aria-label="Previous song"
+                >
+                  ⏮
+                </button>
+                <button
+                  id="playBtn"
+                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
+                  type="button"
+                  aria-label="Play or pause"
+                >
+                  ▶
+                </button>
+                <button
+                  id="nextBtn"
+                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
+                  type="button"
+                  aria-label="Next song"
+                >
+                  ⏭
+                </button>
+              </div>
               <div class="mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                 <button
                   id="bpmMinus10Btn"
@@ -483,39 +512,10 @@
                 </button>
               </div>
               <div id="accentMapPanel" class="mx-auto mt-4 w-full max-w-xl">
-                <div id="accentBeatButtons" class="flex w-full flex-nowrap items-center justify-start gap-2.5 overflow-x-auto overflow-y-hidden pb-1"></div>
+                <div id="accentBeatButtons" class="flex w-full flex-wrap items-center justify-center gap-2.5"></div>
               </div>
             </section>
 
-            <section class="space-y-4">
-              <div id="transportControlsRow" class="grid grid-cols-3 gap-3">
-                <button
-                  id="prevBtn"
-                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
-                  type="button"
-                  aria-label="Previous song"
-                >
-                  ⏮
-                </button>
-                <button
-                  id="playBtn"
-                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
-                  type="button"
-                  aria-label="Play or pause"
-                >
-                  ▶
-                </button>
-                <button
-                  id="nextBtn"
-                  class="line-ui min-h-[4.3rem] rounded-2xl text-4xl font-black leading-none text-neutral-100 active:scale-[0.98]"
-                  type="button"
-                  aria-label="Next song"
-                >
-                  ⏭
-                </button>
-              </div>
-              <p id="wakeLockState" class="text-center text-xs font-bold text-neutral-400">Wake lock: idle</p>
-            </section>
           </div>
         </section>
 
@@ -683,7 +683,6 @@
           bpmRollerProgress: document.getElementById("bpmRollerProgress"),
           bpmRollerDial: document.getElementById("bpmRollerDial"),
           flashSurface: document.getElementById("flashSurface"),
-          wakeLockState: document.getElementById("wakeLockState"),
           playBtn: document.getElementById("playBtn"),
           prevBtn: document.getElementById("prevBtn"),
           nextBtn: document.getElementById("nextBtn"),
@@ -910,6 +909,10 @@
           els.customSignatureError.classList.add("hidden");
         }
 
+        function setWakeLockStatus(_message) {
+          // Wake lock UI indicator intentionally removed.
+        }
+
         function setCustomSignatureInputsFromLabel(signatureLabel) {
           const parsed = parseTimeSignature(signatureLabel);
           setCustomNumeratorValue(parsed.beatsPerBar);
@@ -1045,7 +1048,7 @@
             const beatNumber = index + 1;
             const selectedClass = accentSet.has(beatNumber) ? " is-selected" : "";
             const activeClass = useAccents && accentSet.has(beatNumber) ? " is-active" : "";
-            return `<button type="button" data-accent-beat="${beatNumber}" class="accent-beat-btn line-ui${selectedClass}${activeClass} min-h-[2.65rem] min-w-[2.65rem] flex-none rounded-lg px-1 text-base font-black">${beatNumber}</button>`;
+            return `<button type="button" data-accent-beat="${beatNumber}" class="accent-beat-btn line-ui${selectedClass}${activeClass} min-h-[2.65rem] min-w-[2.65rem] rounded-lg px-1 text-base font-black">${beatNumber}</button>`;
           }).join("");
 
           els.accentBeatButtons.innerHTML = beatButtons;
@@ -1546,7 +1549,7 @@
 
           if (state.isPlaying && clamped <= 0) {
             stopMetronome();
-            els.wakeLockState.textContent = "Set BPM above 0";
+            setWakeLockStatus("Set BPM above 0");
           }
 
           return true;
@@ -1820,7 +1823,7 @@
           if (!active || state.isPlaying) return;
 
           if (active.bpm <= 0) {
-            els.wakeLockState.textContent = "Set BPM above 0";
+            setWakeLockStatus("Set BPM above 0");
             return;
           }
 
@@ -1874,37 +1877,37 @@
 
         async function requestWakeLock() {
           if (!("wakeLock" in navigator)) {
-            els.wakeLockState.textContent = "Wake lock: unsupported";
+            setWakeLockStatus("Wake lock: unsupported");
             return;
           }
 
           if (state.wakeLock && !state.wakeLock.released) {
-            els.wakeLockState.textContent = "Wake lock: active";
+            setWakeLockStatus("Wake lock: active");
             return;
           }
 
           try {
             state.wakeLock = await navigator.wakeLock.request("screen");
-            els.wakeLockState.textContent = "Wake lock: active";
+            setWakeLockStatus("Wake lock: active");
             state.wakeLock.addEventListener("release", () => {
               state.wakeLock = null;
-              els.wakeLockState.textContent = state.isPlaying ? "Wake lock: released" : "Wake lock: idle";
+              setWakeLockStatus(state.isPlaying ? "Wake lock: released" : "Wake lock: idle");
             });
           } catch (error) {
             console.warn("Wake lock request failed", error);
-            els.wakeLockState.textContent = "Wake lock: blocked";
+            setWakeLockStatus("Wake lock: blocked");
           }
         }
 
         function releaseWakeLock() {
           if (!state.wakeLock) {
-            els.wakeLockState.textContent = "Wake lock: idle";
+            setWakeLockStatus("Wake lock: idle");
             return;
           }
 
           state.wakeLock.release().catch(() => {});
           state.wakeLock = null;
-          els.wakeLockState.textContent = "Wake lock: idle";
+          setWakeLockStatus("Wake lock: idle");
         }
 
         function onVisibilityChange() {
@@ -1947,12 +1950,48 @@
           });
 
           els.playBtn.addEventListener("click", toggleMetronome);
-          els.prevBtn.addEventListener("click", () => goToAdjacentSong(-1));
-          els.nextBtn.addEventListener("click", () => goToAdjacentSong(1));
-          els.bpmMinus10Btn.addEventListener("click", () => adjustActiveBpm(-10));
-          els.bpmMinus1Btn.addEventListener("click", () => adjustActiveBpm(-1));
-          els.bpmPlus1Btn.addEventListener("click", () => adjustActiveBpm(1));
-          els.bpmPlus10Btn.addEventListener("click", () => adjustActiveBpm(10));
+          els.prevBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            goToAdjacentSong(-1);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.nextBtn.addEventListener("click", (event) => {
+            event.preventDefault();
+            goToAdjacentSong(1);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.bpmMinus10Btn.addEventListener("click", (event) => {
+            event.preventDefault();
+            adjustActiveBpm(-10);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.bpmMinus1Btn.addEventListener("click", (event) => {
+            event.preventDefault();
+            adjustActiveBpm(-1);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.bpmPlus1Btn.addEventListener("click", (event) => {
+            event.preventDefault();
+            adjustActiveBpm(1);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
+          els.bpmPlus10Btn.addEventListener("click", (event) => {
+            event.preventDefault();
+            adjustActiveBpm(10);
+            if (event.currentTarget && typeof event.currentTarget.blur === "function") {
+              event.currentTarget.blur();
+            }
+          });
           els.accentToggleBtn.addEventListener("click", (event) => {
             event.preventDefault();
             toggleActiveSongAccents();
