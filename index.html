@@ -330,22 +330,48 @@
                       </button>
                     </div>
                     <div id="customSignaturePanel" class="mt-3 hidden rounded-lg border border-neutral-700 bg-neutral-900/70 p-3">
-                      <div class="flex gap-2">
-                        <input
-                          id="customSignatureInput"
-                          type="text"
-                          inputmode="numeric"
-                          placeholder="5/4"
-                          class="min-h-[3rem] flex-1 rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-base font-semibold text-neutral-100 outline-none ring-lime-400 focus:ring"
-                        />
-                        <button
-                          id="applyCustomSignatureBtn"
-                          type="button"
-                          class="min-h-[3rem] rounded-lg border border-lime-400 bg-lime-400 px-4 py-2 text-sm font-black uppercase tracking-wide text-black"
-                        >
-                          Apply
-                        </button>
+                      <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+                        <label class="block">
+                          <span class="mb-1 block text-[0.62rem] font-bold uppercase tracking-[0.16em] text-neutral-400">Top</span>
+                          <input
+                            id="customSignatureNumeratorInput"
+                            type="number"
+                            min="1"
+                            max="32"
+                            step="1"
+                            inputmode="numeric"
+                            placeholder="5"
+                            class="min-h-[3rem] w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-center text-lg font-black text-neutral-100 outline-none ring-lime-400 focus:ring"
+                          />
+                        </label>
+                        <span class="pb-2 text-xl font-black text-neutral-300">/</span>
+                        <label class="block">
+                          <span class="mb-1 block text-[0.62rem] font-bold uppercase tracking-[0.16em] text-neutral-400">Bottom</span>
+                          <input
+                            id="customSignatureDenominatorInput"
+                            type="number"
+                            min="1"
+                            max="32"
+                            step="1"
+                            inputmode="numeric"
+                            placeholder="4"
+                            class="min-h-[3rem] w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-center text-lg font-black text-neutral-100 outline-none ring-lime-400 focus:ring"
+                          />
+                        </label>
                       </div>
+                      <div class="mt-2 flex flex-wrap gap-2">
+                        <button type="button" data-denominator-preset="2" class="line-ui min-h-[2.3rem] min-w-[2.7rem] rounded-md px-2 text-sm font-black">2</button>
+                        <button type="button" data-denominator-preset="4" class="line-ui min-h-[2.3rem] min-w-[2.7rem] rounded-md px-2 text-sm font-black">4</button>
+                        <button type="button" data-denominator-preset="8" class="line-ui min-h-[2.3rem] min-w-[2.7rem] rounded-md px-2 text-sm font-black">8</button>
+                        <button type="button" data-denominator-preset="16" class="line-ui min-h-[2.3rem] min-w-[2.7rem] rounded-md px-2 text-sm font-black">16</button>
+                      </div>
+                      <button
+                        id="applyCustomSignatureBtn"
+                        type="button"
+                        class="mt-3 min-h-[3rem] w-full rounded-lg border border-lime-400 bg-lime-400 px-4 py-2 text-sm font-black uppercase tracking-wide text-black"
+                      >
+                        Apply
+                      </button>
                       <p id="customSignatureError" class="mt-2 hidden text-xs font-semibold text-red-400"></p>
                     </div>
                   </div>
@@ -614,7 +640,8 @@
           ts34Btn: document.getElementById("ts34Btn"),
           tsCustomBtn: document.getElementById("tsCustomBtn"),
           customSignaturePanel: document.getElementById("customSignaturePanel"),
-          customSignatureInput: document.getElementById("customSignatureInput"),
+          customSignatureNumeratorInput: document.getElementById("customSignatureNumeratorInput"),
+          customSignatureDenominatorInput: document.getElementById("customSignatureDenominatorInput"),
           applyCustomSignatureBtn: document.getElementById("applyCustomSignatureBtn"),
           customSignatureError: document.getElementById("customSignatureError"),
           bpmRoller: document.getElementById("bpmRoller"),
@@ -848,6 +875,37 @@
           els.customSignatureError.classList.add("hidden");
         }
 
+        function setCustomSignatureInputsFromLabel(signatureLabel) {
+          const parsed = parseTimeSignature(signatureLabel);
+          els.customSignatureNumeratorInput.value = String(parsed.beatsPerBar);
+          els.customSignatureDenominatorInput.value = String(parsed.denominator);
+        }
+
+        function getCustomSignatureCandidateFromInputs() {
+          const numeratorRaw = els.customSignatureNumeratorInput.value.trim();
+          const denominatorRaw = els.customSignatureDenominatorInput.value.trim();
+          if (!numeratorRaw || !denominatorRaw) {
+            return { ok: false, message: "Enter both Top and Bottom values." };
+          }
+
+          const strict = parseTimeSignatureStrict(`${numeratorRaw}/${denominatorRaw}`);
+          if (!strict.ok) {
+            return { ok: false, message: strict.message };
+          }
+
+          return { ok: true, strict };
+        }
+
+        function updateCustomDenominatorPresetButtons(selectedDenominator) {
+          const presetButtons = els.customSignaturePanel.querySelectorAll("[data-denominator-preset]");
+          presetButtons.forEach((button) => {
+            const value = Number.parseInt(button.getAttribute("data-denominator-preset"), 10);
+            const isSelected = Number.isFinite(selectedDenominator) && Number.isFinite(value) && value === selectedDenominator;
+            button.classList.toggle("is-active", isSelected);
+            button.setAttribute("aria-pressed", isSelected ? "true" : "false");
+          });
+        }
+
         function renderRollerRangeByBpm(bpm) {
           const safeBpm = clampBpm(bpm);
           const range = Math.max(1, BPM_MAX - BPM_MIN);
@@ -886,10 +944,6 @@
 
         function isAccentStepInBar(stepInBar, song, parsedSignature) {
           if (!song || !toBoolean(song.useAccents)) return false;
-
-          if (toBoolean(song.doubleTime) && stepInBar % 2 !== 0) {
-            return false;
-          }
 
           const beatNumber = toBoolean(song.doubleTime) ? Math.floor(stepInBar / 2) + 1 : stepInBar + 1;
           const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
@@ -987,7 +1041,7 @@
           state.timeSignatureMenuOpen = true;
           state.customSignaturePanelOpen = !isPresetTimeSignature(activeSignature);
           if (state.customSignaturePanelOpen) {
-            els.customSignatureInput.value = activeSignature;
+            setCustomSignatureInputsFromLabel(activeSignature);
           }
           clearCustomSignatureError();
           renderLivePanel();
@@ -1012,6 +1066,7 @@
           const isPreset = hasActive && isPresetTimeSignature(activeSignatureLabel);
           const customButtonActive = hasActive && (!isPreset || state.customSignaturePanelOpen);
           const panelVisible = menuVisible && (state.customSignaturePanelOpen || !isPreset);
+          const activeSignature = hasActive ? parseTimeSignature(activeSignatureLabel) : null;
 
           updateSignatureButtonState(els.ts44Btn, activeSignatureLabel === "4/4");
           updateSignatureButtonState(els.ts68Btn, activeSignatureLabel === "6/8");
@@ -1020,16 +1075,34 @@
 
           if (panelVisible) {
             els.customSignaturePanel.classList.remove("hidden");
-            if (document.activeElement !== els.customSignatureInput) {
+            const editingCustomInputs =
+              document.activeElement === els.customSignatureNumeratorInput ||
+              document.activeElement === els.customSignatureDenominatorInput;
+            if (!editingCustomInputs) {
               if (!isPreset) {
-                els.customSignatureInput.value = activeSignatureLabel;
-              } else if (!els.customSignatureInput.value.trim()) {
-                els.customSignatureInput.value = activeSignatureLabel;
+                setCustomSignatureInputsFromLabel(activeSignatureLabel);
+              } else if (
+                !els.customSignatureNumeratorInput.value.trim() ||
+                !els.customSignatureDenominatorInput.value.trim()
+              ) {
+                setCustomSignatureInputsFromLabel(activeSignatureLabel);
               }
             }
           } else {
             els.customSignaturePanel.classList.add("hidden");
             clearCustomSignatureError();
+          }
+
+          if (panelVisible) {
+            const denominatorInputValue = Number.parseInt(els.customSignatureDenominatorInput.value, 10);
+            const denominatorToHighlight = Number.isFinite(denominatorInputValue)
+              ? denominatorInputValue
+              : activeSignature
+                ? activeSignature.denominator
+                : null;
+            updateCustomDenominatorPresetButtons(denominatorToHighlight);
+          } else {
+            updateCustomDenominatorPresetButtons(null);
           }
         }
 
@@ -1106,9 +1179,18 @@
             button.classList.toggle("cursor-not-allowed", disabled);
           });
 
-          els.customSignatureInput.disabled = disabled;
-          els.customSignatureInput.classList.toggle("opacity-50", disabled);
-          els.customSignatureInput.classList.toggle("cursor-not-allowed", disabled);
+          [els.customSignatureNumeratorInput, els.customSignatureDenominatorInput].forEach((input) => {
+            input.disabled = disabled;
+            input.classList.toggle("opacity-50", disabled);
+            input.classList.toggle("cursor-not-allowed", disabled);
+          });
+
+          const presetButtons = els.customSignaturePanel.querySelectorAll("[data-denominator-preset]");
+          presetButtons.forEach((button) => {
+            button.disabled = disabled;
+            button.classList.toggle("opacity-50", disabled);
+            button.classList.toggle("cursor-not-allowed", disabled);
+          });
 
           els.bpmRoller.classList.toggle("opacity-50", disabled);
           els.bpmRoller.classList.toggle("cursor-not-allowed", disabled);
@@ -1257,23 +1339,23 @@
           if (!active) return;
           state.timeSignatureMenuOpen = true;
           state.customSignaturePanelOpen = true;
-          els.customSignatureInput.value = parseTimeSignature(active.timeSignature).label;
+          setCustomSignatureInputsFromLabel(parseTimeSignature(active.timeSignature).label);
           clearCustomSignatureError();
           renderLivePanel();
 
           requestAnimationFrame(() => {
-            els.customSignatureInput.focus();
-            els.customSignatureInput.select();
+            els.customSignatureNumeratorInput.focus();
+            els.customSignatureNumeratorInput.select();
           });
         }
 
         function applyCustomSignature() {
-          const candidate = els.customSignatureInput.value.trim();
-          const strict = parseTimeSignatureStrict(candidate);
-          if (!strict.ok) {
-            setCustomSignatureError(strict.message);
+          const parsedInputs = getCustomSignatureCandidateFromInputs();
+          if (!parsedInputs.ok) {
+            setCustomSignatureError(parsedInputs.message);
             return;
           }
+          const strict = parsedInputs.strict;
 
           state.timeSignatureMenuOpen = false;
           state.customSignaturePanelOpen = false;
@@ -1839,16 +1921,33 @@
           els.ts34Btn.addEventListener("click", () => applyPresetTimeSignature("3/4"));
           els.tsCustomBtn.addEventListener("click", openCustomSignaturePanel);
           els.applyCustomSignatureBtn.addEventListener("click", applyCustomSignature);
-          els.customSignatureInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              applyCustomSignature();
-              return;
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              closeTimeSignatureMenu();
-            }
+          [els.customSignatureNumeratorInput, els.customSignatureDenominatorInput].forEach((input) => {
+            input.addEventListener("keydown", (event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyCustomSignature();
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeTimeSignatureMenu();
+              }
+            });
+          });
+          els.customSignatureNumeratorInput.addEventListener("input", clearCustomSignatureError);
+          els.customSignatureDenominatorInput.addEventListener("input", () => {
+            const denominator = Number.parseInt(els.customSignatureDenominatorInput.value, 10);
+            updateCustomDenominatorPresetButtons(Number.isFinite(denominator) ? denominator : null);
+            clearCustomSignatureError();
+          });
+          els.customSignaturePanel.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-denominator-preset]");
+            if (!button) return;
+            const denominator = Number.parseInt(button.getAttribute("data-denominator-preset"), 10);
+            if (!Number.isFinite(denominator)) return;
+            els.customSignatureDenominatorInput.value = String(denominator);
+            updateCustomDenominatorPresetButtons(denominator);
+            clearCustomSignatureError();
           });
           els.bpmRoller.addEventListener("wheel", onRollerWheel, { passive: false });
           els.bpmRoller.addEventListener("pointerdown", onRollerPointerDown);
