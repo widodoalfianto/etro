@@ -255,9 +255,11 @@
         display: none;
       }
 
-      .add-song-solid .add-plus {
-        display: inline-block;
-        transform: translateY(0);
+      .add-song-solid .add-plus-icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        display: block;
+        flex: none;
       }
 
       .add-song-solid:hover,
@@ -645,7 +647,9 @@
                 class="line-ui add-song-solid"
                 aria-label="Add song"
               >
-                <span class="add-plus">+</span>
+                <svg class="add-plus-icon" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
               </button>
             </div>
           </div>
