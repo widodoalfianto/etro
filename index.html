@@ -483,7 +483,7 @@
                 </button>
               </div>
               <div id="accentMapPanel" class="mx-auto mt-4 w-full max-w-xl">
-                <div id="accentBeatButtons" class="flex flex-wrap items-center justify-center gap-2.5"></div>
+                <div id="accentBeatButtons" class="flex w-full flex-nowrap items-center justify-start gap-2.5 overflow-x-auto overflow-y-hidden pb-1"></div>
               </div>
             </section>
 
@@ -1045,7 +1045,7 @@
             const beatNumber = index + 1;
             const selectedClass = accentSet.has(beatNumber) ? " is-selected" : "";
             const activeClass = useAccents && accentSet.has(beatNumber) ? " is-active" : "";
-            return `<button type="button" data-accent-beat="${beatNumber}" class="accent-beat-btn line-ui${selectedClass}${activeClass} min-h-[2.65rem] min-w-[2.65rem] rounded-lg px-1 text-base font-black">${beatNumber}</button>`;
+            return `<button type="button" data-accent-beat="${beatNumber}" class="accent-beat-btn line-ui${selectedClass}${activeClass} min-h-[2.65rem] min-w-[2.65rem] flex-none rounded-lg px-1 text-base font-black">${beatNumber}</button>`;
           }).join("");
 
           els.accentBeatButtons.innerHTML = beatButtons;
