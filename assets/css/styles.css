@@ -12,12 +12,18 @@
        */
       #accentToggleBtn,
       #doubleTimeToggleBtn,
+      #shareSetlistBtn,
+      #openImportSetlistBtn,
       #setlistPanel h2,
       #clearSetlistBtn,
       #clearConfirmModal h3,
       #deleteConfirmModal h3,
+      #shareSetlistModal h3,
+      #importSetlistModal h3,
       #clearConfirmModal button,
       #deleteConfirmModal button,
+      #shareSetlistModal button,
+      #importSetlistModal button,
       #setlistContainer .song-title {
         font-weight: 900 !important;
         -webkit-text-stroke: 0.24px currentColor;
@@ -25,7 +31,9 @@
       }
 
       #accentToggleBtn,
-      #doubleTimeToggleBtn {
+      #doubleTimeToggleBtn,
+      #shareSetlistBtn,
+      #openImportSetlistBtn {
         font-size: 0.96rem;
       }
 
@@ -38,12 +46,16 @@
       }
 
       #clearConfirmModal h3,
-      #deleteConfirmModal h3 {
+      #deleteConfirmModal h3,
+      #shareSetlistModal h3,
+      #importSetlistModal h3 {
         font-size: 1.34rem;
       }
 
       #clearConfirmModal button,
-      #deleteConfirmModal button {
+      #deleteConfirmModal button,
+      #shareSetlistModal button,
+      #importSetlistModal button {
         font-size: 0.95rem;
       }
 
@@ -256,6 +268,40 @@
         gap: 0.7rem;
       }
 
+      #currentSongTitle {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: clamp(2rem, 4.2vw, 3.2rem);
+        line-height: 1.05;
+      }
+
+      #songTitleEditInput {
+        font-size: clamp(1.95rem, 4vw, 3rem);
+      }
+
+      @media (max-width: 1480px) {
+        #currentSongTitle {
+          font-size: clamp(1.86rem, 3.85vw, 2.85rem);
+        }
+
+        #songTitleEditInput {
+          font-size: clamp(1.82rem, 3.65vw, 2.65rem);
+        }
+      }
+
+      @media (max-width: 1280px) {
+        #currentSongTitle {
+          font-size: clamp(1.7rem, 3.4vw, 2.45rem);
+        }
+
+        #songTitleEditInput {
+          font-size: clamp(1.62rem, 3.2vw, 2.3rem);
+        }
+      }
+
       #currentSongTitle.line-ui::after {
         bottom: -0.25rem;
       }
@@ -446,8 +492,59 @@
         border-radius: 1.1rem;
       }
 
+      .mobile-mode .setlist-actions {
+        display: grid;
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: center;
+        justify-items: stretch;
+        gap: 0.5rem;
+      }
+
+      .mobile-mode .setlist-actions > button {
+        min-width: 0 !important;
+        width: 100%;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+      }
+
+      .mobile-mode .setlist-actions #addSongBtn {
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      .mobile-mode #rhythmToggleStack {
+        width: 2.9rem;
+        gap: 0.45rem;
+      }
+
+      .mobile-mode #rhythmToggleStack > button {
+        width: 2.9rem;
+        min-width: 2.9rem;
+        min-height: 2.35rem;
+        border-radius: 0.72rem;
+        border: 1px solid rgba(82, 82, 82, 0.95);
+        background: rgba(23, 23, 23, 0.82);
+        padding: 0;
+        font-size: 0.92rem;
+        letter-spacing: 0;
+      }
+
+      .mobile-mode #rhythmToggleStack > button.line-ui::after {
+        content: none;
+      }
+
       .mobile-mode #currentSongTitle {
-        font-size: clamp(1.8rem, 7.8vw, 3rem);
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: clamp(1.45rem, 6.2vw, 2.35rem);
+      }
+
+      .mobile-mode #songTitleEditInput {
+        font-size: clamp(1.4rem, 6vw, 2.2rem);
       }
 
       .mobile-mode #timeSignatureLabel {

@@ -6,6 +6,8 @@
         const BPM_MAX = 240;
         const ALLOWED_CUSTOM_DENOMINATORS = [2, 4, 8, 16];
         const SONG_TITLE_MAX_LENGTH = 18;
+        const SHARE_HASH_KEY = "sl";
+        const SHARE_SCHEMA_VERSION = 1;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -46,7 +48,8 @@
           timeSignatureMenuOpen: false,
           titleEditSongId: null,
           pendingDeleteSongId: null,
-          songTitleLimitHintTimer: null
+          songTitleLimitHintTimer: null,
+          shareModalStatusTimer: null
         };
 
         const lookaheadMs = 25;
@@ -83,6 +86,8 @@
           prevBtn: document.getElementById("prevBtn"),
           nextBtn: document.getElementById("nextBtn"),
           clearSetlistBtn: document.getElementById("clearSetlistBtn"),
+          shareSetlistBtn: document.getElementById("shareSetlistBtn"),
+          openImportSetlistBtn: document.getElementById("openImportSetlistBtn"),
           addSongBtn: document.getElementById("addSongBtn"),
           setlistContainer: document.getElementById("setlistContainer"),
           clearConfirmModal: document.getElementById("clearConfirmModal"),
@@ -91,7 +96,18 @@
           deleteConfirmModal: document.getElementById("deleteConfirmModal"),
           deleteConfirmMessage: document.getElementById("deleteConfirmMessage"),
           cancelDeleteModalBtn: document.getElementById("cancelDeleteModalBtn"),
-          confirmDeleteModalBtn: document.getElementById("confirmDeleteModalBtn")
+          confirmDeleteModalBtn: document.getElementById("confirmDeleteModalBtn"),
+          shareSetlistModal: document.getElementById("shareSetlistModal"),
+          shareLinkInput: document.getElementById("shareLinkInput"),
+          shareModalStatus: document.getElementById("shareModalStatus"),
+          closeShareModalBtn: document.getElementById("closeShareModalBtn"),
+          copyShareLinkBtn: document.getElementById("copyShareLinkBtn"),
+          nativeShareLinkBtn: document.getElementById("nativeShareLinkBtn"),
+          importSetlistModal: document.getElementById("importSetlistModal"),
+          importSetlistInput: document.getElementById("importSetlistInput"),
+          importSetlistError: document.getElementById("importSetlistError"),
+          cancelImportModalBtn: document.getElementById("cancelImportModalBtn"),
+          confirmImportModalBtn: document.getElementById("confirmImportModalBtn")
         };
 
         function registerServiceWorker() {
@@ -310,6 +326,378 @@
           saveToStorage(payload);
         }
 
+        function clearShareModalStatusTimer() {
+          if (state.shareModalStatusTimer !== null) {
+            window.clearTimeout(state.shareModalStatusTimer);
+            state.shareModalStatusTimer = null;
+          }
+        }
+
+        function setShareModalStatus(message, tone = "success") {
+          clearShareModalStatusTimer();
+          const hasMessage = Boolean(message);
+          els.shareModalStatus.textContent = message || "";
+          els.shareModalStatus.classList.toggle("hidden", !hasMessage);
+          els.shareModalStatus.classList.toggle("text-lime-300", hasMessage && tone !== "error");
+          els.shareModalStatus.classList.toggle("text-red-400", hasMessage && tone === "error");
+          if (!hasMessage) return;
+
+          state.shareModalStatusTimer = window.setTimeout(() => {
+            els.shareModalStatus.textContent = "";
+            els.shareModalStatus.classList.add("hidden");
+            els.shareModalStatus.classList.remove("text-red-400");
+            els.shareModalStatus.classList.add("text-lime-300");
+            state.shareModalStatusTimer = null;
+          }, 1800);
+        }
+
+        function setImportSetlistError(message) {
+          els.importSetlistError.textContent = message;
+          els.importSetlistError.classList.remove("hidden");
+        }
+
+        function clearImportSetlistError() {
+          els.importSetlistError.textContent = "";
+          els.importSetlistError.classList.add("hidden");
+        }
+
+        function showModal(modal) {
+          if (!modal) return;
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+          modal.setAttribute("aria-hidden", "false");
+        }
+
+        function hideModal(modal) {
+          if (!modal) return;
+          modal.classList.remove("flex");
+          modal.classList.add("hidden");
+          modal.setAttribute("aria-hidden", "true");
+        }
+
+        function encodeBase64UrlUtf8(text) {
+          const bytes = new TextEncoder().encode(String(text || ""));
+          let binary = "";
+          for (let index = 0; index < bytes.length; index += 1) {
+            binary += String.fromCharCode(bytes[index]);
+          }
+          return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+        }
+
+        function decodeBase64UrlUtf8(token) {
+          const normalized = String(token || "").replace(/-/g, "+").replace(/_/g, "/");
+          const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+          const binary = atob(padded);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+          }
+          return new TextDecoder().decode(bytes);
+        }
+
+        function buildSharePayload() {
+          const songs = state.songs.length ? state.songs.map((song) => normalizeSong(song)) : [createDefaultSong()];
+          const hasActiveSong = songs.some((song) => song.id === state.activeSongId);
+          const activeSongId = hasActiveSong ? state.activeSongId : songs[0].id;
+          return {
+            v: SHARE_SCHEMA_VERSION,
+            a: activeSongId,
+            s: songs
+          };
+        }
+
+        function encodeSharePayload(payload) {
+          const payloadText = JSON.stringify(payload);
+          return encodeBase64UrlUtf8(payloadText);
+        }
+
+        function normalizeImportedSetlistPayload(payload) {
+          if (!payload || typeof payload !== "object") {
+            return { ok: false, message: "Import data is invalid." };
+          }
+
+          const rawSongs = Array.isArray(payload.s) ? payload.s : Array.isArray(payload.songs) ? payload.songs : null;
+          if (!rawSongs || rawSongs.length === 0) {
+            return { ok: false, message: "Import data has no songs." };
+          }
+
+          const seenIds = new Set();
+          const songs = rawSongs
+            .map((rawSong) => normalizeSong(rawSong && typeof rawSong === "object" ? rawSong : {}))
+            .map((song) => {
+              if (!seenIds.has(song.id)) {
+                seenIds.add(song.id);
+                return song;
+              }
+              const dedupedId = makeId();
+              seenIds.add(dedupedId);
+              return { ...song, id: dedupedId };
+            });
+
+          if (!songs.length) {
+            return { ok: false, message: "Import data has no songs." };
+          }
+
+          const rawActiveSongId =
+            typeof payload.a === "string"
+              ? payload.a
+              : typeof payload.activeSongId === "string"
+                ? payload.activeSongId
+                : "";
+          const activeSongId = songs.some((song) => song.id === rawActiveSongId)
+            ? rawActiveSongId
+            : songs[0].id;
+
+          return {
+            ok: true,
+            songs,
+            activeSongId
+          };
+        }
+
+        function decodeSharePayloadFromToken(token) {
+          try {
+            const tokenText = decodeURIComponent(String(token || "").trim());
+            if (!tokenText) {
+              return { ok: false, message: "Export code is empty." };
+            }
+            const payloadText = decodeBase64UrlUtf8(tokenText);
+            const payload = JSON.parse(payloadText);
+            return normalizeImportedSetlistPayload(payload);
+          } catch (error) {
+            console.warn("Could not decode Share token", error);
+            return { ok: false, message: "Could not decode this Export code." };
+          }
+        }
+
+        function getShareTokenFromLocation() {
+          const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+          if (hash) {
+            const hashParams = new URLSearchParams(hash);
+            const hashToken = hashParams.get(SHARE_HASH_KEY);
+            if (hashToken) return hashToken.trim();
+          }
+
+          const searchParams = new URLSearchParams(window.location.search);
+          const queryToken = searchParams.get(SHARE_HASH_KEY);
+          if (queryToken) return queryToken.trim();
+
+          return "";
+        }
+
+        function extractShareTokenFromInput(rawInput) {
+          const trimmed = String(rawInput || "").trim();
+          if (!trimmed) return "";
+
+          if (trimmed.startsWith(`${SHARE_HASH_KEY}=`)) {
+            return decodeURIComponent(trimmed.slice(SHARE_HASH_KEY.length + 1));
+          }
+
+          const directTokenMatch = /(?:^|[#?&])sl=([^&\s]+)/i.exec(trimmed);
+          if (directTokenMatch) {
+            return decodeURIComponent(directTokenMatch[1]);
+          }
+
+          try {
+            const parsedUrl = new URL(trimmed, window.location.origin);
+            const queryToken = parsedUrl.searchParams.get(SHARE_HASH_KEY);
+            if (queryToken) {
+              return queryToken.trim();
+            }
+            const hash = parsedUrl.hash.startsWith("#") ? parsedUrl.hash.slice(1) : parsedUrl.hash;
+            if (hash) {
+              const hashParams = new URLSearchParams(hash);
+              const hashToken = hashParams.get(SHARE_HASH_KEY);
+              if (hashToken) {
+                return hashToken.trim();
+              }
+            }
+          } catch (error) {
+            // Non-URL input. Fall through and treat as direct code.
+          }
+
+          return trimmed;
+        }
+
+        function parseImportPayloadFromText(rawValue) {
+          const trimmed = String(rawValue || "").trim();
+          if (!trimmed) {
+            return { ok: false, message: "Paste an Export link or import code." };
+          }
+
+          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try {
+              const jsonPayload = JSON.parse(trimmed);
+              if (Array.isArray(jsonPayload)) {
+                return normalizeImportedSetlistPayload({ songs: jsonPayload });
+              }
+              return normalizeImportedSetlistPayload(jsonPayload);
+            } catch (error) {
+              return { ok: false, message: "JSON import is invalid." };
+            }
+          }
+
+          const shareToken = extractShareTokenFromInput(trimmed);
+          if (!shareToken) {
+            return { ok: false, message: "Could not parse the Export link." };
+          }
+          return decodeSharePayloadFromToken(shareToken);
+        }
+
+        function applyImportedSetlist(parsedImport) {
+          const wasPlaying = state.isPlaying;
+          if (wasPlaying) {
+            stopMetronome();
+          }
+
+          state.songs = parsedImport.songs;
+          state.activeSongId = parsedImport.activeSongId;
+          state.titleEditSongId = null;
+          state.pendingDeleteSongId = null;
+          state.timeSignatureMenuOpen = false;
+          const active = getActiveSong();
+          state.customSignaturePanelOpen = active
+            ? !isPresetTimeSignature(parseTimeSignature(active.timeSignature).label)
+            : false;
+
+          saveSongs();
+          renderAll();
+
+          if (wasPlaying) {
+            startMetronome().catch((error) => console.error("Restart failed", error));
+          }
+        }
+
+        function buildShareLink() {
+          const payload = buildSharePayload();
+          const token = encodeSharePayload(payload);
+          const baseUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+          return `${baseUrl}#${SHARE_HASH_KEY}=${token}`;
+        }
+
+        function openShareSetlistModal() {
+          const shareLink = buildShareLink();
+          els.shareLinkInput.value = shareLink;
+          setShareModalStatus("");
+
+          const canNativeShare = typeof navigator.share === "function";
+          els.nativeShareLinkBtn.disabled = !canNativeShare;
+          els.nativeShareLinkBtn.classList.toggle("hidden", !canNativeShare);
+
+          showModal(els.shareSetlistModal);
+          requestAnimationFrame(() => {
+            els.shareLinkInput.focus();
+            els.shareLinkInput.select();
+          });
+        }
+
+        function closeShareSetlistModal() {
+          hideModal(els.shareSetlistModal);
+          clearShareModalStatusTimer();
+          setShareModalStatus("");
+        }
+
+        function copyShareLink() {
+          const shareLink = els.shareLinkInput.value.trim();
+          if (!shareLink) {
+            setShareModalStatus("No export link available to copy.", "error");
+            return;
+          }
+
+          const fallbackCopy = () => {
+            try {
+              els.shareLinkInput.focus();
+              els.shareLinkInput.select();
+              return document.execCommand("copy");
+            } catch (error) {
+              return false;
+            }
+          };
+
+          const onCopied = () => setShareModalStatus("Link copied.");
+          const onFailed = () => setShareModalStatus("Copy failed. Copy it manually.", "error");
+
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard
+              .writeText(shareLink)
+              .then(onCopied)
+              .catch(() => {
+                if (fallbackCopy()) {
+                  onCopied();
+                } else {
+                  onFailed();
+                }
+              });
+            return;
+          }
+
+          if (fallbackCopy()) {
+            onCopied();
+          } else {
+            onFailed();
+          }
+        }
+
+        async function nativeShareLink() {
+          const shareLink = els.shareLinkInput.value.trim();
+          if (!shareLink) {
+            setShareModalStatus("No export link available to send.", "error");
+            return;
+          }
+
+          if (typeof navigator.share !== "function") {
+            setShareModalStatus("Send is not supported on this device.", "error");
+            return;
+          }
+
+          try {
+            await navigator.share({
+              title: "etro setlist",
+              text: "etro setlist",
+              url: shareLink
+            });
+            setShareModalStatus("Sent.");
+          } catch (error) {
+            if (error && error.name === "AbortError") return;
+            setShareModalStatus("Send failed.", "error");
+          }
+        }
+
+        function openImportSetlistModal(prefillValue = "") {
+          clearImportSetlistError();
+          els.importSetlistInput.value = String(prefillValue || "");
+          showModal(els.importSetlistModal);
+          requestAnimationFrame(() => {
+            els.importSetlistInput.focus();
+            els.importSetlistInput.select();
+          });
+        }
+
+        function closeImportSetlistModal() {
+          hideModal(els.importSetlistModal);
+          clearImportSetlistError();
+        }
+
+        function confirmImportSetlist() {
+          const parsedImport = parseImportPayloadFromText(els.importSetlistInput.value);
+          if (!parsedImport.ok) {
+            setImportSetlistError(parsedImport.message);
+            return;
+          }
+
+          applyImportedSetlist(parsedImport);
+          closeImportSetlistModal();
+        }
+
+        function maybeOpenImportFromUrlToken() {
+          const shareToken = getShareTokenFromLocation();
+          if (!shareToken) return;
+          const shareLink = `${window.location.origin}${window.location.pathname}${window.location.search}#${SHARE_HASH_KEY}=${shareToken}`;
+          openImportSetlistModal(shareLink);
+          const cleanUrl = `${window.location.pathname}${window.location.search}`;
+          window.history.replaceState(null, "", cleanUrl);
+        }
+
         function getActiveSong() {
           return state.songs.find((song) => song.id === state.activeSongId) || null;
         }
@@ -460,9 +848,14 @@
           const hasSong = Boolean(song);
           const useAccents = hasSong && toBoolean(song.useAccents);
           const doubleTime = hasSong && toBoolean(song.doubleTime);
+          const mobileRhythmPills = document.body.classList.contains("mobile-mode");
 
-          els.accentToggleBtn.textContent = "Accent";
-          els.doubleTimeToggleBtn.textContent = "Double Time";
+          els.accentToggleBtn.textContent = mobileRhythmPills ? "A" : "Accent";
+          els.doubleTimeToggleBtn.textContent = mobileRhythmPills ? "D" : "Double Time";
+          els.accentToggleBtn.setAttribute("aria-label", "Accent");
+          els.doubleTimeToggleBtn.setAttribute("aria-label", "Double Time");
+          els.accentToggleBtn.title = "Accent";
+          els.doubleTimeToggleBtn.title = "Double Time";
           els.accentToggleBtn.classList.toggle("is-active", useAccents);
           els.doubleTimeToggleBtn.classList.toggle("is-active", doubleTime);
           els.accentToggleBtn.setAttribute("aria-pressed", useAccents ? "true" : "false");
@@ -1577,14 +1970,37 @@
           els.bpmRoller.addEventListener("pointerup", onRollerPointerEnd);
           els.bpmRoller.addEventListener("pointercancel", onRollerPointerEnd);
           els.bpmRoller.addEventListener("keydown", onRollerKeydown);
+          els.shareSetlistBtn.addEventListener("click", openShareSetlistModal);
+          els.openImportSetlistBtn.addEventListener("click", () => openImportSetlistModal());
           els.clearSetlistBtn.addEventListener("click", clearSetlist);
           els.addSongBtn.addEventListener("click", addDefaultSong);
           els.cancelClearModalBtn.addEventListener("click", closeClearConfirmModal);
           els.confirmClearModalBtn.addEventListener("click", confirmClearSetlist);
           els.cancelDeleteModalBtn.addEventListener("click", closeDeleteConfirmModal);
           els.confirmDeleteModalBtn.addEventListener("click", confirmDeleteSong);
+          els.closeShareModalBtn.addEventListener("click", closeShareSetlistModal);
+          els.copyShareLinkBtn.addEventListener("click", copyShareLink);
+          els.nativeShareLinkBtn.addEventListener("click", nativeShareLink);
+          els.shareLinkInput.addEventListener("focus", () => {
+            els.shareLinkInput.select();
+          });
+          els.shareLinkInput.addEventListener("click", () => {
+            els.shareLinkInput.select();
+          });
+          els.cancelImportModalBtn.addEventListener("click", closeImportSetlistModal);
+          els.confirmImportModalBtn.addEventListener("click", confirmImportSetlist);
+          els.importSetlistInput.addEventListener("input", clearImportSetlistError);
+          els.importSetlistInput.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            if (!event.metaKey && !event.ctrlKey) return;
+            event.preventDefault();
+            confirmImportSetlist();
+          });
           document.addEventListener("visibilitychange", onVisibilityChange);
-          window.addEventListener("resize", applyDeviceModeClass);
+          window.addEventListener("resize", () => {
+            applyDeviceModeClass();
+            renderLivePanel();
+          });
 
           els.clearConfirmModal.addEventListener("click", (event) => {
             if (event.target === els.clearConfirmModal) {
@@ -1594,6 +2010,16 @@
           els.deleteConfirmModal.addEventListener("click", (event) => {
             if (event.target === els.deleteConfirmModal) {
               closeDeleteConfirmModal();
+            }
+          });
+          els.shareSetlistModal.addEventListener("click", (event) => {
+            if (event.target === els.shareSetlistModal) {
+              closeShareSetlistModal();
+            }
+          });
+          els.importSetlistModal.addEventListener("click", (event) => {
+            if (event.target === els.importSetlistModal) {
+              closeImportSetlistModal();
             }
           });
 
@@ -1614,6 +2040,16 @@
 
             if (!els.clearConfirmModal.classList.contains("hidden")) {
               closeClearConfirmModal();
+              return;
+            }
+
+            if (!els.shareSetlistModal.classList.contains("hidden")) {
+              closeShareSetlistModal();
+              return;
+            }
+
+            if (!els.importSetlistModal.classList.contains("hidden")) {
+              closeImportSetlistModal();
               return;
             }
 
@@ -1658,6 +2094,7 @@
           els.bpmRollerDial.style.transform = "rotate(-90deg)";
           bindEvents();
           renderAll();
+          maybeOpenImportFromUrlToken();
         }
 
         init();

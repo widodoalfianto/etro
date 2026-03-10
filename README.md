@@ -51,6 +51,7 @@ Note: service workers require HTTPS (or `localhost`). Vercel provides HTTPS by d
 
 - Web Audio `currentTime` scheduler (no `setInterval`) for stable timing
 - Setlist with add, select, delete, reset
+- Share Link export and import (paste link or code)
 - Per-song settings:
   - Optional title
   - BPM `0-240`
@@ -60,6 +61,16 @@ Note: service workers require HTTPS (or `localhost`). Vercel provides HTTPS by d
 - Persistent data in `localStorage`
 - Wake Lock while playing (when supported)
 - Mobile-responsive dark UI
+
+## Share and import
+
+1. Tap `Share` in Setlist to generate a link.
+2. Use `Copy Link` or native `Share`.
+3. On another device, open `Import`, paste the link or code, then tap `Import`.
+
+Notes:
+- Import replaces the current setlist.
+- Opening a URL with `#sl=...` pre-fills the import modal automatically.
 
 ## Default state
 

@@ -173,7 +173,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="flex w-36 shrink-0 flex-col gap-2">
+                <div id="rhythmToggleStack" class="flex w-36 shrink-0 flex-col gap-2">
                   <button
                     id="accentToggleBtn"
                     type="button"
@@ -287,16 +287,8 @@
           id="setlistPanel"
           class="flex min-h-[22vh] flex-col rounded-2xl border border-neutral-800 bg-neutral-900/60 p-3 sm:p-4 lg:min-h-[42vh]"
         >
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <h2 class="text-sm font-black tracking-[0.08em] text-neutral-300">Setlist</h2>
-            <div class="flex items-center gap-2">
-              <button
-                id="clearSetlistBtn"
-                type="button"
-                class="line-ui danger-line-ui inline-flex min-h-[2.8rem] min-w-[4.8rem] items-center justify-center rounded-lg px-3 py-1 text-sm font-black tracking-[0.04em] text-neutral-100"
-              >
-                Reset
-              </button>
+          <div class="mb-3 flex items-center justify-end">
+            <div class="setlist-actions flex w-full flex-nowrap items-center justify-end gap-2">
               <button
                 id="addSongBtn"
                 type="button"
@@ -306,6 +298,27 @@
                 <svg class="add-plus-icon" viewBox="0 0 20 20" aria-hidden="true">
                   <path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
                 </svg>
+              </button>
+              <button
+                id="openImportSetlistBtn"
+                type="button"
+                class="line-ui inline-flex min-h-[2.8rem] min-w-[4.4rem] items-center justify-center rounded-lg px-3 py-1 text-sm font-black tracking-[0.04em] text-neutral-100"
+              >
+                Import
+              </button>
+              <button
+                id="shareSetlistBtn"
+                type="button"
+                class="line-ui inline-flex min-h-[2.8rem] min-w-[4.4rem] items-center justify-center rounded-lg px-3 py-1 text-sm font-black tracking-[0.04em] text-neutral-100"
+              >
+                Export
+              </button>
+              <button
+                id="clearSetlistBtn"
+                type="button"
+                class="line-ui danger-line-ui inline-flex min-h-[2.8rem] min-w-[4.8rem] items-center justify-center rounded-lg px-3 py-1 text-sm font-black tracking-[0.04em] text-neutral-100"
+              >
+                Clear
               </button>
             </div>
           </div>
@@ -355,10 +368,10 @@
       </div>
     </div>
 
-    <div
-      id="deleteConfirmModal"
-      class="fixed inset-0 z-50 hidden items-end justify-center bg-black/70 p-4 sm:items-center"
-      aria-hidden="true"
+      <div
+        id="deleteConfirmModal"
+        class="fixed inset-0 z-50 hidden items-end justify-center bg-black/70 p-4 sm:items-center"
+        aria-hidden="true"
     >
       <div class="w-full max-w-md rounded-2xl border border-neutral-700 bg-neutral-900 p-4 sm:p-5">
         <h3 class="text-xl font-black">Delete</h3>
@@ -379,8 +392,83 @@
             Delete
           </button>
         </div>
+        </div>
       </div>
-    </div>
-    <script src="./assets/js/app.js"></script>
+
+      <div
+        id="shareSetlistModal"
+        class="fixed inset-0 z-50 hidden items-end justify-center bg-black/70 p-4 sm:items-center"
+        aria-hidden="true"
+      >
+        <div class="w-full max-w-lg rounded-2xl border border-neutral-700 bg-neutral-900 p-4 sm:p-5">
+          <h3 class="text-xl font-black">Export Setlist</h3>
+          <p class="mt-3 text-sm font-semibold text-neutral-200">Copy this export link or use Send to pass the current setlist.</p>
+          <input
+            id="shareLinkInput"
+            type="text"
+            readonly
+            class="mt-3 w-full rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-semibold text-neutral-100 outline-none ring-lime-400 focus:ring"
+          />
+          <p id="shareModalStatus" class="mt-2 hidden text-xs font-black text-lime-300"></p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <button
+              id="closeShareModalBtn"
+              type="button"
+              class="flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-black tracking-[0.04em]"
+            >
+              Close
+            </button>
+            <button
+              id="copyShareLinkBtn"
+              type="button"
+              class="flex-1 rounded-xl border border-lime-400 bg-lime-400 px-3 py-2 text-sm font-black tracking-[0.04em] text-black"
+            >
+              Copy Link
+            </button>
+            <button
+              id="nativeShareLinkBtn"
+              type="button"
+              class="flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-black tracking-[0.04em]"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        id="importSetlistModal"
+        class="fixed inset-0 z-50 hidden items-end justify-center bg-black/70 p-4 sm:items-center"
+        aria-hidden="true"
+      >
+        <div class="w-full max-w-lg rounded-2xl border border-neutral-700 bg-neutral-900 p-4 sm:p-5">
+          <h3 class="text-xl font-black">Import Setlist</h3>
+          <p class="mt-3 text-sm font-semibold text-neutral-200">Paste an Export link or import code. This will replace the current setlist.</p>
+          <textarea
+            id="importSetlistInput"
+            rows="4"
+            placeholder="Paste link or code"
+            class="mt-3 w-full resize-y rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-semibold text-neutral-100 outline-none ring-lime-400 focus:ring"
+          ></textarea>
+          <p id="importSetlistError" class="mt-2 hidden text-xs font-black text-red-400"></p>
+          <div class="mt-5 flex gap-2">
+            <button
+              id="cancelImportModalBtn"
+              type="button"
+              class="flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm font-black tracking-[0.04em]"
+            >
+              Cancel
+            </button>
+            <button
+              id="confirmImportModalBtn"
+              type="button"
+              class="flex-1 rounded-xl border border-lime-400 bg-lime-400 px-3 py-2 text-sm font-black tracking-[0.04em] text-black"
+            >
+              Import
+            </button>
+          </div>
+        </div>
+      </div>
+      <script src="./assets/js/app.js"></script>
   </body>
 </html>
