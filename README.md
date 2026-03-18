@@ -21,7 +21,7 @@ Bug reports and feature requests are also welcome in Issues.
 `etro` is now configured as a Progressive Web App (PWA):
 
 - Installable on supported mobile and desktop browsers
-- Offline-capable after first load (core app shell cached)
+- Offline-capable after first load with network-first refresh and cached fallback
 - Standalone app mode with theme color and app icons
 
 ### PWA files

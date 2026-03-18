@@ -8,6 +8,8 @@
         const SONG_TITLE_MAX_LENGTH = 18;
         const SHARE_HASH_KEY = "sl";
         const SHARE_SCHEMA_VERSION = 2;
+        const APP_SHELL_REFRESH_URLS = ["./index.html", "./assets/css/styles.css", "./assets/js/app.js", "./manifest.json"];
+        const APP_SHELL_STALE_AFTER_MS = 60 * 1000;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -50,7 +52,10 @@
           pendingDeleteSongId: null,
           songTitleLimitHintTimer: null,
           shareModalStatusTimer: null,
-          shareLink: ""
+          shareLink: "",
+          serviceWorkerRegistration: null,
+          appShellRefreshPromise: null,
+          lastAppShellRefreshAt: 0
         };
 
         const lookaheadMs = 25;
@@ -112,10 +117,50 @@
 
         function registerServiceWorker() {
           if (!("serviceWorker" in navigator)) return;
-          window.addEventListener("load", () => {
-            navigator.serviceWorker.register("./sw.js").catch((error) => {
+          window.addEventListener("load", async () => {
+            try {
+              state.serviceWorkerRegistration = await navigator.serviceWorker.register("./sw.js");
+              refreshAppShellInBackground(true);
+            } catch (error) {
               console.warn("Service worker registration failed", error);
+            }
+          });
+        }
+
+        async function refreshAppShell(force = false) {
+          if (!("serviceWorker" in navigator)) return Promise.resolve();
+          if (state.appShellRefreshPromise) return state.appShellRefreshPromise;
+
+          const now = Date.now();
+          if (!force && now - state.lastAppShellRefreshAt < APP_SHELL_STALE_AFTER_MS) {
+            return Promise.resolve();
+          }
+
+          state.lastAppShellRefreshAt = now;
+          state.appShellRefreshPromise = (async () => {
+            const refreshRequests = APP_SHELL_REFRESH_URLS.map((assetUrl) =>
+              fetch(assetUrl, { cache: "no-cache", credentials: "same-origin" }).catch(() => null)
+            );
+            await Promise.allSettled(refreshRequests);
+
+            const registration =
+              state.serviceWorkerRegistration || (await navigator.serviceWorker.getRegistration().catch(() => null));
+            if (!registration) return;
+
+            state.serviceWorkerRegistration = registration;
+            await registration.update().catch((error) => {
+              console.warn("Service worker update check failed", error);
             });
+          })().finally(() => {
+            state.appShellRefreshPromise = null;
+          });
+
+          return state.appShellRefreshPromise;
+        }
+
+        function refreshAppShellInBackground(force = false) {
+          refreshAppShell(force).catch((error) => {
+            console.warn("App shell refresh failed", error);
           });
         }
 
@@ -1835,9 +1880,26 @@
         }
 
         function onVisibilityChange() {
-          if (document.visibilityState === "visible" && state.isPlaying) {
+          if (document.visibilityState !== "visible") return;
+
+          if (state.isPlaying) {
             requestWakeLock();
           }
+
+          refreshAppShellInBackground();
+        }
+
+        function onPageShow(event) {
+          if (!event.persisted && !document.wasDiscarded) return;
+          refreshAppShellInBackground();
+        }
+
+        function onWindowFocus() {
+          refreshAppShellInBackground();
+        }
+
+        function onNetworkReconnect() {
+          refreshAppShellInBackground(true);
         }
 
         function bindEvents() {
@@ -2063,6 +2125,9 @@
             confirmImportSetlist();
           });
           document.addEventListener("visibilitychange", onVisibilityChange);
+          window.addEventListener("pageshow", onPageShow);
+          window.addEventListener("focus", onWindowFocus);
+          window.addEventListener("online", onNetworkReconnect);
           window.addEventListener("resize", () => {
             applyDeviceModeClass();
             renderLivePanel();

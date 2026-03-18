@@ -373,14 +373,40 @@
         box-shadow: none;
       }
 
+      .accent-map-disabled .accent-beat-btn.line-ui:hover,
+      .accent-map-disabled .accent-beat-btn.line-ui:focus-visible {
+        background: rgba(64, 64, 64, 0.16);
+        box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.3) inset;
+        color: rgb(229 229 229);
+      }
+
+      .accent-map-disabled .accent-beat-btn.line-ui:hover::after,
+      .accent-map-disabled .accent-beat-btn.line-ui:focus-visible::after {
+        background: rgba(163, 163, 163, 0.92);
+        box-shadow: none;
+      }
+
       .accent-map-disabled .accent-beat-btn.is-selected {
-        color: rgb(94 234 212);
-        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.22) inset;
+        color: rgb(212 212 212);
+        box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.3) inset;
       }
 
       .accent-map-disabled .accent-beat-btn.is-selected::after {
-        background: rgba(45, 212, 191, 0.78);
-        box-shadow: 0 0 10px rgba(45, 212, 191, 0.3);
+        background: rgba(163, 163, 163, 0.92);
+        box-shadow: none;
+      }
+
+      .accent-map-disabled .accent-beat-btn.is-current-beat,
+      .accent-map-disabled .accent-beat-btn.is-current-accent {
+        background: rgba(64, 64, 64, 0.3) !important;
+        box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.3) inset !important;
+        color: rgb(229 229 229) !important;
+      }
+
+      .accent-map-disabled .accent-beat-btn.is-current-beat::after,
+      .accent-map-disabled .accent-beat-btn.is-current-accent::after {
+        background: rgba(163, 163, 163, 0.92) !important;
+        box-shadow: none !important;
       }
 
       .accent-beat-btn.is-current-beat {

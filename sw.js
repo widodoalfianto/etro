@@ -1,4 +1,4 @@
-const CACHE_NAME = "etro-cache-v2";
+const CACHE_NAME = "etro-cache-v3";
 
 const CORE_ASSETS = [
   "./",
@@ -15,6 +15,13 @@ const CORE_ASSETS = [
 ];
 
 const OPTIONAL_EXTERNAL_ASSETS = ["https://cdn.tailwindcss.com", "https://fonts.cdnfonts.com/css/alliance-no1"];
+
+function createNetworkFirstRequest(request) {
+  if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
+    return request;
+  }
+  return new Request(request, { cache: "no-cache" });
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -59,7 +66,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(createNetworkFirstRequest(request))
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
@@ -73,7 +80,7 @@ self.addEventListener("fetch", (event) => {
   // Same-origin files use network-first so app updates are picked up quickly.
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(request)
+      fetch(createNetworkFirstRequest(request))
         .then((response) => {
           if (response && (response.ok || response.type === "opaque")) {
             const copy = response.clone();
