@@ -41,6 +41,7 @@
           audioContext: null,
           schedulerTimer: null,
           nextNoteTime: 0,
+          lastScheduledNoteTime: 0,
           currentBeat: 0,
           activeBeatsPerBar: 4,
           visualTimers: [],
@@ -694,11 +695,6 @@
         }
 
         function applyImportedSetlist(parsedImport) {
-          const wasPlaying = state.isPlaying;
-          if (wasPlaying) {
-            stopMetronome();
-          }
-
           state.songs = parsedImport.songs;
           state.activeSongId = parsedImport.activeSongId;
           state.titleEditSongId = null;
@@ -712,8 +708,8 @@
           saveSongs();
           renderAll();
 
-          if (wasPlaying) {
-            startMetronome().catch((error) => console.error("Restart failed", error));
+          if (state.isPlaying) {
+            refreshPlayingTransport({ resetBeat: true });
           }
         }
 
@@ -1062,6 +1058,7 @@
         function closeTitleEditor(commitChanges) {
           const active = getActiveSong();
           const isEditing = active && state.titleEditSongId === active.id;
+          let didChange = false;
 
           if (isEditing && commitChanges) {
             const nextName = sanitizeSongName(els.songTitleEditInput.value);
@@ -1071,6 +1068,7 @@
                 return { ...song, name: nextName };
               });
               saveSongs();
+              didChange = true;
             }
           }
 
@@ -1078,7 +1076,11 @@
           hideSongTitleLimitInfo();
           els.songTitleEditInput.classList.add("hidden");
           els.currentSongTitle.classList.remove("hidden");
-          renderAll();
+          if (didChange && active) {
+            renderLiveStateWithSetlistRows([active.id]);
+            return;
+          }
+          renderLiveState();
         }
 
         function closeTimeSignatureMenu() {
@@ -1260,58 +1262,100 @@
           els.clearSetlistBtn.classList.toggle("cursor-not-allowed", noSongs);
         }
 
-        function renderSetlist() {
-          const activeId = state.activeSongId;
+        function getSetlistRowMarkup(song) {
+          const isActive = song.id === state.activeSongId;
+          const rawTitle = String(song.name || "").trim();
+          const title = rawTitle.length > SONG_TITLE_MAX_LENGTH ? `${rawTitle.slice(0, SONG_TITLE_MAX_LENGTH)}...` : rawTitle;
+          const hasTitle = title.length > 0;
+          const titleMarkup = hasTitle
+            ? `<span class="song-title block text-base font-black leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
+            : "";
+          const signatureClass = hasTitle
+            ? `whitespace-nowrap text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
+            : `whitespace-nowrap text-sm font-semibold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
+          const signatureRowClass = hasTitle
+            ? "mt-1 flex items-center gap-1.5 flex-nowrap"
+            : "flex items-center gap-1.5 flex-nowrap";
+          const accentPill = song.useAccents ? '<span class="song-pill song-pill-accent" title="Accented beats">A</span>' : "";
+          const doublePill = song.doubleTime ? '<span class="song-pill song-pill-double" title="Double time">D</span>' : "";
+          const optionPills = accentPill || doublePill ? `<span class="flex shrink-0 items-center gap-1 flex-nowrap">${accentPill}${doublePill}</span>` : "";
 
+          return `
+            <article class="setlist-row" data-song-id="${song.id}">
+              <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left">
+                <span class="pr-2 min-w-0 flex-1">
+                  ${titleMarkup}
+                  <span class="${signatureRowClass}">
+                    <span class="${signatureClass}">${song.timeSignature}</span>
+                    ${optionPills}
+                  </span>
+                </span>
+                <span class="text-xl font-black ${isActive ? "text-lime-300" : "text-neutral-200"}">${song.bpm}</span>
+              </button>
+              <button type="button" class="song-delete line-ui danger-line-ui flex min-h-[3.6rem] min-w-[3.1rem] items-center justify-center rounded-lg px-2 text-red-300" aria-label="Delete song">
+                <svg class="pointer-events-none h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <path d="M4 7h16" stroke-linecap="round" />
+                  <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" />
+                  <path d="M8 7l1 12a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9L16 7" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10 11v5M14 11v5" stroke-linecap="round" />
+                </svg>
+              </button>
+            </article>
+          `;
+        }
+
+        function createSetlistRowElement(markup) {
+          const template = document.createElement("template");
+          template.innerHTML = markup.trim();
+          return template.content.firstElementChild;
+        }
+
+        function getSetlistRowSelector(songId) {
+          if (window.CSS && typeof window.CSS.escape === "function") {
+            return `[data-song-id="${window.CSS.escape(songId)}"]`;
+          }
+          const safeSongId = String(songId).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          return `[data-song-id="${safeSongId}"]`;
+        }
+
+        function patchSetlistRows(songIds) {
+          const uniqueSongIds = [...new Set((songIds || []).filter(Boolean))];
+          if (!uniqueSongIds.length || !state.songs.length) return;
+
+          let didFallbackToFullRender = false;
+          uniqueSongIds.forEach((songId) => {
+            if (didFallbackToFullRender) return;
+
+            const song = state.songs.find((item) => item.id === songId);
+            const row = els.setlistContainer.querySelector(getSetlistRowSelector(songId));
+            if (!song || !row) {
+              didFallbackToFullRender = true;
+              renderSetlist();
+              return;
+            }
+
+            row.replaceWith(createSetlistRowElement(getSetlistRowMarkup(song)));
+          });
+        }
+
+        function renderLiveState() {
+          renderLivePanel();
+          updateDocumentTitle();
+        }
+
+        function renderLiveStateWithSetlistRows(songIds) {
+          renderLiveState();
+          patchSetlistRows(songIds);
+        }
+
+        function renderSetlist() {
           if (!state.songs.length) {
             els.setlistContainer.innerHTML =
               '<p class="line-ui rounded-xl px-3 py-3 text-sm text-neutral-300">No songs yet. Tap + to start.</p>';
             return;
           }
 
-          const listMarkup = state.songs
-            .map((song) => {
-              const isActive = song.id === activeId;
-              const rawTitle = String(song.name || "").trim();
-              const title = rawTitle.length > SONG_TITLE_MAX_LENGTH ? `${rawTitle.slice(0, SONG_TITLE_MAX_LENGTH)}...` : rawTitle;
-              const hasTitle = title.length > 0;
-              const titleMarkup = hasTitle
-                ? `<span class="song-title block text-base font-black leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
-                : "";
-              const signatureClass = hasTitle
-                ? `whitespace-nowrap text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
-                : `whitespace-nowrap text-sm font-semibold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
-              const signatureRowClass = hasTitle
-                ? "mt-1 flex items-center gap-1.5 flex-nowrap"
-                : "flex items-center gap-1.5 flex-nowrap";
-              const accentPill = song.useAccents ? '<span class="song-pill song-pill-accent" title="Accented beats">A</span>' : "";
-              const doublePill = song.doubleTime ? '<span class="song-pill song-pill-double" title="Double time">D</span>' : "";
-              const optionPills = accentPill || doublePill ? `<span class="flex shrink-0 items-center gap-1 flex-nowrap">${accentPill}${doublePill}</span>` : "";
-
-              return `
-                <article class="setlist-row" data-song-id="${song.id}">
-                  <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left">
-                    <span class="pr-2 min-w-0 flex-1">
-                      ${titleMarkup}
-                      <span class="${signatureRowClass}">
-                        <span class="${signatureClass}">${song.timeSignature}</span>
-                        ${optionPills}
-                      </span>
-                    </span>
-                    <span class="text-xl font-black ${isActive ? "text-lime-300" : "text-neutral-200"}">${song.bpm}</span>
-                  </button>
-                  <button type="button" class="song-delete line-ui danger-line-ui flex min-h-[3.6rem] min-w-[3.1rem] items-center justify-center rounded-lg px-2 text-red-300" aria-label="Delete song">
-                    <svg class="pointer-events-none h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                      <path d="M4 7h16" stroke-linecap="round" />
-                      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" />
-                      <path d="M8 7l1 12a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9L16 7" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M10 11v5M14 11v5" stroke-linecap="round" />
-                    </svg>
-                  </button>
-                </article>
-              `;
-            })
-            .join("");
+          const listMarkup = state.songs.map((song) => getSetlistRowMarkup(song)).join("");
 
           els.setlistContainer.innerHTML = listMarkup;
         }
@@ -1337,7 +1381,7 @@
           renderAll();
 
           if (state.isPlaying) {
-            restartMetronome().catch((error) => console.error("Restart failed", error));
+            refreshPlayingTransport({ resetBeat: true });
           }
         }
 
@@ -1377,10 +1421,14 @@
             saveSongs();
           }
 
-          renderAll();
+          if (changed) {
+            renderLiveStateWithSetlistRows([active.id]);
+          } else {
+            renderLiveState();
+          }
 
           if (changed && state.isPlaying) {
-            restartMetronome().catch((error) => console.error("Restart failed", error));
+            refreshPlayingTransport({ resetBeat: true });
           }
 
           return { ok: true, changed, label: nextLabel };
@@ -1458,19 +1506,17 @@
           const wasPlaying = state.isPlaying;
 
           if (state.songs.length <= 1) {
-            if (wasPlaying) {
-              stopMetronome();
-            }
             resetToDefaultSetlist();
             saveSongs();
             renderAll();
             if (wasPlaying) {
-              startMetronome().catch((error) => console.error("Restart failed", error));
+              refreshPlayingTransport({ resetBeat: true });
             }
             return;
           }
 
           const index = state.songs.findIndex((item) => item.id === songId);
+          const didChangeActiveSong = state.activeSongId === songId;
           state.songs = state.songs.filter((item) => item.id !== songId);
 
           if (state.activeSongId === songId) {
@@ -1483,8 +1529,8 @@
           saveSongs();
           renderAll();
 
-          if (wasPlaying) {
-            restartMetronome().catch((error) => console.error("Restart failed", error));
+          if (wasPlaying && didChangeActiveSong) {
+            refreshPlayingTransport({ resetBeat: true });
           }
         }
 
@@ -1495,17 +1541,20 @@
         function confirmClearSetlist() {
           closeClearConfirmModal();
 
-          if (state.isPlaying) {
-            stopMetronome();
-          }
-
           resetToDefaultSetlist();
           saveSongs();
           renderAll();
+
+          if (state.isPlaying) {
+            refreshPlayingTransport({ resetBeat: true });
+          }
         }
 
         function selectSong(songId) {
           if (!state.songs.some((song) => song.id === songId)) return;
+          if (songId === state.activeSongId) return;
+
+          const previousActiveSongId = state.activeSongId;
           state.activeSongId = songId;
           state.titleEditSongId = null;
           state.timeSignatureMenuOpen = false;
@@ -1514,10 +1563,10 @@
             state.customSignaturePanelOpen = !isPresetTimeSignature(parseTimeSignature(active.timeSignature).label);
           }
           saveSongs();
-          renderAll();
+          renderLiveStateWithSetlistRows([previousActiveSongId, songId]);
 
           if (state.isPlaying) {
-            restartMetronome().catch((error) => console.error("Restart failed", error));
+            refreshPlayingTransport({ resetBeat: true });
           }
         }
 
@@ -1542,7 +1591,11 @@
             return { ...song, bpm: clamped };
           });
           saveSongs();
-          renderAll();
+          renderLiveStateWithSetlistRows([active.id]);
+
+          if (state.isPlaying) {
+            refreshPlayingTransport();
+          }
 
           return true;
         }
@@ -1587,10 +1640,10 @@
             };
           });
           saveSongs();
-          renderAll();
+          renderLiveStateWithSetlistRows([active.id]);
 
-          if (state.isPlaying) {
-            restartMetronome().catch((error) => console.error("Restart failed", error));
+          if (state.isPlaying && nextDoubleTime !== activeDoubleTime) {
+            refreshPlayingTransport();
           }
           return true;
         }
@@ -1631,6 +1684,39 @@
           }
 
           updateActiveSongRhythmOptions({ useAccents: true, accentBeats: nextAccentBeats });
+        }
+
+        function getSecondsPerTickForSong(song) {
+          const safeBpm = clampBpm(song?.bpm);
+          const multiplier = song?.doubleTime ? 2 : 1;
+          return 60 / (safeBpm * multiplier);
+        }
+
+        function refreshPlayingTransport(options = {}) {
+          if (!state.isPlaying || !state.audioContext) return;
+
+          const { resetBeat = false } = options;
+          const active = getActiveSong();
+          if (!active) {
+            stopMetronome();
+            return;
+          }
+
+          const parsed = parseTimeSignature(active.timeSignature);
+          state.activeBeatsPerBar = parsed.beatsPerBar;
+
+          if (resetBeat) {
+            state.currentBeat = 0;
+          }
+
+          const pendingFutureNote = state.lastScheduledNoteTime > state.audioContext.currentTime + 0.01;
+          if (pendingFutureNote) {
+            state.nextNoteTime = state.lastScheduledNoteTime + getSecondsPerTickForSong(active);
+          } else {
+            state.nextNoteTime = state.audioContext.currentTime + 0.05;
+          }
+
+          clearVisualTimers();
         }
 
         function getRollerAngle(event) {
@@ -1797,9 +1883,7 @@
           const active = getActiveSong();
           if (!active) return;
 
-          const safeBpm = clampBpm(active.bpm);
-          const multiplier = active.doubleTime ? 2 : 1;
-          const secondsPerTick = 60 / (safeBpm * multiplier);
+          const secondsPerTick = getSecondsPerTickForSong(active);
           state.nextNoteTime += secondsPerTick;
           state.currentBeat = (state.currentBeat + 1) % state.activeBeatsPerBar;
         }
@@ -1810,6 +1894,7 @@
 
           const parsed = parseTimeSignature(active.timeSignature);
           const isAccented = isAccentStepInBar(beatInBar, active, parsed);
+          state.lastScheduledNoteTime = noteTime;
           scheduleClick(noteTime, isAccented);
           queueBeatIndicatorPulse(noteTime, beatInBar, isAccented);
         }
@@ -1834,6 +1919,7 @@
           state.activeBeatsPerBar = parsed.beatsPerBar;
           state.currentBeat = 0;
           state.nextNoteTime = state.audioContext.currentTime + 0.05;
+          state.lastScheduledNoteTime = 0;
           state.isPlaying = true;
           els.playBtn.textContent = "⏸";
           els.playBtn.classList.add("is-active");
@@ -1846,6 +1932,7 @@
           if (!state.isPlaying) return;
 
           state.isPlaying = false;
+          state.lastScheduledNoteTime = 0;
 
           if (state.schedulerTimer !== null) {
             window.clearTimeout(state.schedulerTimer);
@@ -1869,12 +1956,6 @@
               console.error("Could not start metronome", error);
             }
           }
-        }
-
-        async function restartMetronome() {
-          if (!state.isPlaying) return;
-          stopMetronome();
-          await startMetronome();
         }
 
         async function requestWakeLock() {
