@@ -1,6 +1,25 @@
 # etro
 
-`etro` is a static, touch-first metronome app for live performance.
+`etro` is a static, touch-first metronome built for live performance.
+
+It keeps the main controls large, the setlist close at hand, and the timing stable with a Web Audio scheduler instead of `setInterval`.
+
+## What it looks like
+
+![etro screenshot](./assets/media/etro-screenshot.png)
+
+## Highlights
+
+- Web Audio `currentTime` scheduler for steadier timing
+- Setlist workflow with add, select, delete, and reset
+- BPM range `20-240`
+- Time signatures: `4/4`, `6/8`, `3/4`, and custom
+- Custom signatures support top values `1-32` and bottom values `2`, `4`, `8`, or `16` such as `13/16`
+- Accent toggle with editable accent-map beats
+- Double Time toggle per song
+- Export/share links and import flow with destructive-action confirmation
+- Persistent local data via `localStorage`
+- Installable PWA with offline support and Wake Lock when available
 
 ## Project stance
 
@@ -8,17 +27,9 @@
 - `etro` is open source.
 - Contributions are welcome.
 
-## Contributing
-
-1. Fork the repo: `https://github.com/widodoalfianto/etro`
-2. Create a branch.
-3. Open a pull request with a clear summary.
-
-Bug reports and feature requests are also welcome in Issues.
-
 ## PWA support
 
-`etro` is now configured as a Progressive Web App (PWA):
+`etro` is configured as a Progressive Web App (PWA):
 
 - Installable on supported mobile and desktop browsers
 - Offline-capable after first load with network-first refresh and cached fallback
@@ -38,38 +49,15 @@ Bug reports and feature requests are also welcome in Issues.
 
 Note: service workers require HTTPS (or `localhost`). Vercel provides HTTPS by default.
 
-## Project structure
-
-- `index.html` - app markup
-- `assets/css/styles.css` - app styles
-- `assets/js/app.js` - app logic and audio scheduler
-- `manifest.json` - PWA manifest
-- `sw.js` - PWA service worker
-- `.github/workflows/pages.yml` - optional GitHub Pages workflow
-
-## Features
-
-- Web Audio `currentTime` scheduler (no `setInterval`) for stable timing
-- Setlist with add, select, delete, reset
-- Share Link export and import (paste link or code)
-- Per-song settings:
-  - Optional title
-  - BPM `0-240`
-  - Time signatures: `4/4`, `6/8`, `3/4`, custom
-  - Accent toggle + editable accent map
-  - Double Time toggle
-- Persistent data in `localStorage`
-- Wake Lock while playing (when supported)
-- Mobile-responsive dark UI
-
 ## Share and import
 
-1. Tap `Share` in Setlist to generate a link.
-2. Use `Copy Link` or native `Share`.
-3. On another device, open `Import`, paste the link or code, then tap `Import`.
+1. Tap `Export` in the setlist panel to generate a link.
+2. Use `Copy Link` or native `Send`.
+3. On another device, open `Import`, paste the link or code, review the replacement, then tap `Replace Setlist`.
 
 Notes:
-- Import replaces the current setlist.
+
+- Import replaces the current setlist only after a confirmation step.
 - Opening a URL with `#sl=...` pre-fills the import modal automatically.
 
 ## Default state
@@ -77,13 +65,21 @@ Notes:
 On first load and after reset:
 
 - 1 song
-- Empty title (shown as `Untitled` in main view)
+- Empty title (shown as `Untitled` in the main view)
 - BPM `120`
 - Time signature `4/4`
 - Accent off
 - Double Time off
 
 The setlist never stays empty.
+
+## Project structure
+
+- `index.html` - app markup and share metadata
+- `assets/css/styles.css` - app styles
+- `assets/js/app.js` - app logic and audio scheduler
+- `manifest.json` - PWA manifest
+- `sw.js` - PWA service worker
 
 ## Local run
 
@@ -95,7 +91,15 @@ python3 -m http.server 8080
 
 Open `http://localhost:8080`.
 
+## Contributing
+
+1. Fork the repo: `https://github.com/widodoalfianto/etro`
+2. Create a branch.
+3. Open a pull request with a clear summary.
+
+Bug reports and feature requests are also welcome in Issues.
+
 ## Browser notes
 
-- Audio starts after user interaction (browser autoplay policy)
-- Wake Lock support depends on browser/device
+- Audio starts after user interaction because of browser autoplay policy
+- Wake Lock support depends on browser and device

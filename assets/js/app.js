@@ -2,9 +2,12 @@
         const STORAGE_KEY = "etro.setlist.v1";
         const LEGACY_COOKIE_KEY = "etro_setlist_v1";
         const PRESET_TIME_SIGNATURES = ["4/4", "6/8", "3/4"];
-        const BPM_MIN = 0;
+        const BPM_MIN = 20;
         const BPM_MAX = 240;
         const ALLOWED_CUSTOM_DENOMINATORS = [2, 4, 8, 16];
+        const CUSTOM_SIGNATURE_NUMERATOR_MIN = 1;
+        const CUSTOM_SIGNATURE_NUMERATOR_MAX = 32;
+        const IMPORT_PREVIEW_SONG_LIMIT = 3;
         const SONG_TITLE_MAX_LENGTH = 18;
         const SHARE_HASH_KEY = "sl";
         const SHARE_SCHEMA_VERSION = 2;
@@ -53,6 +56,7 @@
           songTitleLimitHintTimer: null,
           shareModalStatusTimer: null,
           shareLink: "",
+          pendingImportSetlist: null,
           serviceWorkerRegistration: null,
           appShellRefreshPromise: null,
           lastAppShellRefreshAt: 0
@@ -111,6 +115,8 @@
           importSetlistModal: document.getElementById("importSetlistModal"),
           importSetlistInput: document.getElementById("importSetlistInput"),
           importSetlistError: document.getElementById("importSetlistError"),
+          importSetlistReview: document.getElementById("importSetlistReview"),
+          importSetlistReviewMessage: document.getElementById("importSetlistReviewMessage"),
           cancelImportModalBtn: document.getElementById("cancelImportModalBtn"),
           confirmImportModalBtn: document.getElementById("confirmImportModalBtn")
         };
@@ -173,17 +179,19 @@
           const numerator = Number.parseInt(match[1], 10);
           const denominator = Number.parseInt(match[2], 10);
 
-          if (!Number.isFinite(numerator) || numerator < 1 || numerator > 32) {
-            return { ok: false, message: "Numerator must be between 1 and 32." };
+          if (
+            !Number.isFinite(numerator) ||
+            numerator < CUSTOM_SIGNATURE_NUMERATOR_MIN ||
+            numerator > CUSTOM_SIGNATURE_NUMERATOR_MAX
+          ) {
+            return {
+              ok: false,
+              message: `Top must be between ${CUSTOM_SIGNATURE_NUMERATOR_MIN} and ${CUSTOM_SIGNATURE_NUMERATOR_MAX}.`
+            };
           }
 
-          if (!Number.isFinite(denominator) || denominator < 1 || denominator > 32) {
-            return { ok: false, message: "Denominator must be between 1 and 32." };
-          }
-
-          const isPowerOfTwo = (denominator & (denominator - 1)) === 0;
-          if (!isPowerOfTwo) {
-            return { ok: false, message: "Denominator must be a power of 2, like 2, 4, 8, 16." };
+          if (!Number.isFinite(denominator) || !ALLOWED_CUSTOM_DENOMINATORS.includes(denominator)) {
+            return { ok: false, message: "Bottom must be 2, 4, 8, or 16." };
           }
 
           return {
@@ -404,6 +412,35 @@
         function clearImportSetlistError() {
           els.importSetlistError.textContent = "";
           els.importSetlistError.classList.add("hidden");
+        }
+
+        function resetImportReviewState() {
+          state.pendingImportSetlist = null;
+          els.importSetlistReview.classList.add("hidden");
+          els.importSetlistReviewMessage.textContent = "";
+          els.confirmImportModalBtn.textContent = "Review Import";
+        }
+
+        function describeImportedSongs(songs) {
+          return songs
+            .slice(0, IMPORT_PREVIEW_SONG_LIMIT)
+            .map((song) => sanitizeSongName(song.name) || "Untitled")
+            .join(", ");
+        }
+
+        function showImportReview(parsedImport) {
+          const currentCount = state.songs.length || 0;
+          const importedCount = parsedImport.songs.length;
+          const preview = describeImportedSongs(parsedImport.songs);
+          const remainder = Math.max(0, importedCount - IMPORT_PREVIEW_SONG_LIMIT);
+          const extraText = remainder > 0 ? `, and ${remainder} more.` : ".";
+
+          state.pendingImportSetlist = parsedImport;
+          els.importSetlistReviewMessage.textContent =
+            `Replace your current ${currentCount}-song setlist with ${importedCount} imported ` +
+            `song${importedCount === 1 ? "" : "s"}? This cannot be undone. Preview: ${preview}${extraText}`;
+          els.importSetlistReview.classList.remove("hidden");
+          els.confirmImportModalBtn.textContent = "Replace Setlist";
         }
 
         function showModal(modal) {
@@ -782,6 +819,7 @@
 
         function openImportSetlistModal(prefillValue = "") {
           clearImportSetlistError();
+          resetImportReviewState();
           els.importSetlistInput.value = String(prefillValue || "");
           showModal(els.importSetlistModal);
           requestAnimationFrame(() => {
@@ -793,17 +831,24 @@
         function closeImportSetlistModal() {
           hideModal(els.importSetlistModal);
           clearImportSetlistError();
+          resetImportReviewState();
         }
 
         function confirmImportSetlist() {
+          if (state.pendingImportSetlist) {
+            applyImportedSetlist(state.pendingImportSetlist);
+            closeImportSetlistModal();
+            return;
+          }
+
           const parsedImport = parseImportPayloadFromText(els.importSetlistInput.value);
           if (!parsedImport.ok) {
             setImportSetlistError(parsedImport.message);
             return;
           }
 
-          applyImportedSetlist(parsedImport);
-          closeImportSetlistModal();
+          clearImportSetlistError();
+          showImportReview(parsedImport);
         }
 
         function maybeOpenImportFromUrlToken() {
@@ -870,16 +915,14 @@
             return { ok: false, message: strict.message };
           }
 
-          if (!ALLOWED_CUSTOM_DENOMINATORS.includes(strict.denominator)) {
-            return { ok: false, message: "Bottom must be 2, 4, 8, or 16." };
-          }
-
           return { ok: true, strict };
         }
 
         function setCustomNumeratorValue(value) {
           const parsed = Number.parseInt(value, 10);
-          const safe = Number.isFinite(parsed) ? Math.min(32, Math.max(1, parsed)) : 4;
+          const safe = Number.isFinite(parsed)
+            ? Math.min(CUSTOM_SIGNATURE_NUMERATOR_MAX, Math.max(CUSTOM_SIGNATURE_NUMERATOR_MIN, parsed))
+            : 4;
           els.customSignatureNumeratorInput.value = String(safe);
         }
 
@@ -1121,8 +1164,8 @@
             els.currentSongTitle.classList.remove("hidden");
             els.songTitleEditInput.classList.add("hidden");
             els.bpmDisplay.textContent = "--";
-            els.bpmRoller.setAttribute("aria-valuenow", "0");
-            renderRollerRangeByBpm(0);
+            els.bpmRoller.setAttribute("aria-valuenow", String(BPM_MIN));
+            renderRollerRangeByBpm(BPM_MIN);
             renderSignatureControls(null);
             renderRhythmToggles(null, null);
             disableTransport(true);
@@ -1501,11 +1544,6 @@
           saveSongs();
           renderAll();
 
-          if (state.isPlaying && clamped <= 0) {
-            stopMetronome();
-            setWakeLockStatus("Set BPM above 0");
-          }
-
           return true;
         }
 
@@ -1759,7 +1797,7 @@
           const active = getActiveSong();
           if (!active) return;
 
-          const safeBpm = Math.max(1, active.bpm);
+          const safeBpm = clampBpm(active.bpm);
           const multiplier = active.doubleTime ? 2 : 1;
           const secondsPerTick = 60 / (safeBpm * multiplier);
           state.nextNoteTime += secondsPerTick;
@@ -1790,11 +1828,6 @@
         async function startMetronome() {
           const active = getActiveSong();
           if (!active || state.isPlaying) return;
-
-          if (active.bpm <= 0) {
-            setWakeLockStatus("Set BPM above 0");
-            return;
-          }
 
           await ensureAudioContext();
           const parsed = parseTimeSignature(active.timeSignature);
@@ -2117,7 +2150,10 @@
           els.nativeShareLinkBtn.addEventListener("click", nativeShareLink);
           els.cancelImportModalBtn.addEventListener("click", closeImportSetlistModal);
           els.confirmImportModalBtn.addEventListener("click", confirmImportSetlist);
-          els.importSetlistInput.addEventListener("input", clearImportSetlistError);
+          els.importSetlistInput.addEventListener("input", () => {
+            clearImportSetlistError();
+            resetImportReviewState();
+          });
           els.importSetlistInput.addEventListener("keydown", (event) => {
             if (event.key !== "Enter") return;
             if (!event.metaKey && !event.ctrlKey) return;

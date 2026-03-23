@@ -1,7 +1,7 @@
 {
   "name": "etro Metronome",
   "short_name": "etro",
-  "description": "A touch-first live performance metronome with setlist, accents, and double time.",
+  "description": "A touch-first setlist metronome for live performance with accents, custom time signatures, shareable imports, and offline support.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
