@@ -60,6 +60,7 @@
       #currentSongTitle,
       #songTitleEditInput,
       #bpmDisplay,
+      #bpmRollerLabel,
       #timeSignatureLabel,
       #accentToggleBtn,
       #doubleTimeToggleBtn,
@@ -127,8 +128,8 @@
         left: 50%;
         top: 50%;
         width: 0.22rem;
-        height: 50%;
-        transform: translate(-50%, -100%);
+        height: calc(50% - 2.35rem);
+        transform: translate(-50%, calc(-100% - 2rem));
         border-radius: 999px;
         background: rgb(190 242 100);
       }
@@ -301,6 +302,19 @@
         display: flex;
         align-items: center;
         gap: 0.7rem;
+      }
+
+      .bpm-roller {
+        transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+      }
+
+      .bpm-roller-label {
+        transition: color 120ms ease, transform 120ms ease;
+      }
+
+      .bpm-roller.is-tap-pending {
+        border-color: rgba(251, 191, 36, 0.7);
+        box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.2) inset, 0 0 24px rgba(251, 191, 36, 0.18);
       }
 
       #songMetaColumn {
@@ -805,6 +819,10 @@
       .mobile-mode #accentMapPanel {
         margin-top: 0.6rem;
         max-width: none;
+      }
+
+      .mobile-mode .bpm-roller-label {
+        font-size: 0.72rem;
       }
 
       .mobile-mode #accentBeatButtons {

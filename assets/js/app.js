@@ -13,6 +13,12 @@
         const SHARE_SCHEMA_VERSION = 2;
         const APP_SHELL_REFRESH_URLS = ["./index.html", "./assets/css/app-shell.css", "./assets/js/app.js", "./manifest.json"];
         const APP_SHELL_STALE_AFTER_MS = 60 * 1000;
+        const TAP_TEMPO_MIN_TAPS = 2;
+        const TAP_TEMPO_MAX_INTERVALS = 6;
+        const TAP_TEMPO_RESET_MS = 2200;
+        const ROLLER_TAP_DRAG_THRESHOLD_PX = 10;
+        const TAP_TEMPO_IDLE_LABEL = "Tap";
+        const TAP_TEMPO_PENDING_LABEL = "Again";
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -50,11 +56,17 @@
           knobDragActive: false,
           knobLastAngle: 0,
           knobRemainder: 0,
+          knobPointerStartX: 0,
+          knobPointerStartY: 0,
+          knobMovedEnough: false,
           customSignaturePanelOpen: false,
           timeSignatureMenuOpen: false,
           titleEditSongId: null,
           pendingDeleteSongId: null,
           songTitleLimitHintTimer: null,
+          tapTempoTimestamps: [],
+          tapTempoSongId: null,
+          tapTempoResetTimer: null,
           shareModalStatusTimer: null,
           shareLink: "",
           pendingImportSetlist: null,
@@ -93,6 +105,7 @@
           bpmRoller: document.getElementById("bpmRoller"),
           bpmRollerProgress: document.getElementById("bpmRollerProgress"),
           bpmRollerDial: document.getElementById("bpmRollerDial"),
+          bpmRollerLabel: document.getElementById("bpmRollerLabel"),
           playBtn: document.getElementById("playBtn"),
           prevBtn: document.getElementById("prevBtn"),
           nextBtn: document.getElementById("nextBtn"),
@@ -276,6 +289,79 @@
             els.songTitleLimitInfo.classList.add("hidden");
             state.songTitleLimitHintTimer = null;
           }, 1400);
+        }
+
+        function clearTapTempoResetTimer() {
+          if (state.tapTempoResetTimer !== null) {
+            window.clearTimeout(state.tapTempoResetTimer);
+            state.tapTempoResetTimer = null;
+          }
+        }
+
+        function renderTapTempoFeedback(label = TAP_TEMPO_IDLE_LABEL, tone = "idle") {
+          els.bpmRollerLabel.textContent = label;
+          els.bpmRoller.classList.toggle("is-tap-pending", tone === "pending");
+          els.bpmRoller.classList.remove("is-tap-success");
+          els.bpmRollerLabel.classList.toggle("text-neutral-400", tone === "idle");
+          els.bpmRollerLabel.classList.toggle("text-amber-300", tone === "pending");
+          els.bpmRollerLabel.classList.toggle("text-lime-300", tone === "success");
+        }
+
+        function resetTapTempoState() {
+          state.tapTempoTimestamps = [];
+          state.tapTempoSongId = null;
+          clearTapTempoResetTimer();
+          renderTapTempoFeedback();
+        }
+
+        function scheduleTapTempoReset() {
+          clearTapTempoResetTimer();
+          state.tapTempoResetTimer = window.setTimeout(() => {
+            resetTapTempoState();
+          }, TAP_TEMPO_RESET_MS);
+        }
+
+        function calculateTapTempoBpm(timestamps) {
+          const intervals = [];
+          for (let index = 1; index < timestamps.length; index += 1) {
+            const interval = timestamps[index] - timestamps[index - 1];
+            if (interval > 0) {
+              intervals.push(interval);
+            }
+          }
+
+          const recentIntervals = intervals.slice(-TAP_TEMPO_MAX_INTERVALS);
+          if (recentIntervals.length < TAP_TEMPO_MIN_TAPS - 1) {
+            return null;
+          }
+
+          let filteredIntervals = recentIntervals;
+          if (recentIntervals.length >= 4) {
+            const sortedIntervals = [...recentIntervals].sort((a, b) => a - b);
+            const minInterval = sortedIntervals[0];
+            const maxInterval = sortedIntervals[sortedIntervals.length - 1];
+            let removedMin = false;
+            let removedMax = false;
+            filteredIntervals = recentIntervals.filter((interval) => {
+              if (!removedMin && interval === minInterval) {
+                removedMin = true;
+                return false;
+              }
+              if (!removedMax && interval === maxInterval) {
+                removedMax = true;
+                return false;
+              }
+              return true;
+            });
+          }
+
+          const meanInterval =
+            filteredIntervals.reduce((total, interval) => total + interval, 0) / filteredIntervals.length;
+          if (!Number.isFinite(meanInterval) || meanInterval <= 0) {
+            return null;
+          }
+
+          return clampBpm(Math.round(60000 / meanInterval));
         }
 
         function normalizeAccentBeats(rawAccentBeats, beatsPerBar, fallbackBeats) {
@@ -1167,6 +1253,7 @@
           const active = getActiveSong();
           if (!active) {
             state.titleEditSongId = null;
+            resetTapTempoState();
             els.currentSongTitle.textContent = "No Song Selected";
             els.currentSongTitle.classList.remove("is-placeholder");
             els.currentSongTitle.classList.remove("hidden");
@@ -1183,6 +1270,10 @@
 
           const parsed = parseTimeSignature(active.timeSignature);
           state.activeBeatsPerBar = parsed.beatsPerBar;
+
+          if (state.tapTempoSongId && state.tapTempoSongId !== active.id) {
+            resetTapTempoState();
+          }
 
           if (state.titleEditSongId !== active.id) {
             state.titleEditSongId = null;
@@ -1590,6 +1681,9 @@
         function updateActiveSongBpm(nextBpm) {
           const active = getActiveSong();
           if (!active) return false;
+          if (state.tapTempoTimestamps.length || state.tapTempoSongId || state.tapTempoResetTimer !== null) {
+            resetTapTempoState();
+          }
           const clamped = clampBpm(nextBpm);
           if (clamped === active.bpm) return false;
 
@@ -1612,6 +1706,39 @@
           const active = getActiveSong();
           if (!active) return;
           updateActiveSongBpm(active.bpm + delta);
+        }
+
+        function registerTapTempo() {
+          const active = getActiveSong();
+          if (!active) return;
+
+          const now = performance.now();
+          const latestTap = state.tapTempoTimestamps[state.tapTempoTimestamps.length - 1] || 0;
+          const hasStaleTapSeries = latestTap && now - latestTap > TAP_TEMPO_RESET_MS;
+          const changedSongs = state.tapTempoSongId && state.tapTempoSongId !== active.id;
+
+          if (hasStaleTapSeries || changedSongs) {
+            state.tapTempoTimestamps = [];
+          }
+
+          state.tapTempoSongId = active.id;
+          state.tapTempoTimestamps.push(now);
+
+          const maxTapCount = TAP_TEMPO_MAX_INTERVALS + 1;
+          if (state.tapTempoTimestamps.length > maxTapCount) {
+            state.tapTempoTimestamps = state.tapTempoTimestamps.slice(-maxTapCount);
+          }
+
+          const bpm = calculateTapTempoBpm(state.tapTempoTimestamps);
+          if (bpm === null) {
+            renderTapTempoFeedback(TAP_TEMPO_PENDING_LABEL, "pending");
+            scheduleTapTempoReset();
+            return;
+          }
+
+          updateActiveSongBpm(bpm);
+          renderTapTempoFeedback(String(bpm), "success");
+          scheduleTapTempoReset();
         }
 
         function updateActiveSongRhythmOptions(nextOptions) {
@@ -1743,6 +1870,9 @@
         function onRollerPointerDown(event) {
           if (!getActiveSong()) return;
           state.knobDragActive = true;
+          state.knobMovedEnough = false;
+          state.knobPointerStartX = event.clientX;
+          state.knobPointerStartY = event.clientY;
           state.knobLastAngle = getRollerAngle(event);
           state.knobRemainder = 0;
           els.bpmRoller.setPointerCapture(event.pointerId);
@@ -1751,6 +1881,26 @@
 
         function onRollerPointerMove(event) {
           if (!state.knobDragActive) return;
+          const movedX = event.clientX - state.knobPointerStartX;
+          const movedY = event.clientY - state.knobPointerStartY;
+          const movedDistance = Math.hypot(movedX, movedY);
+
+          if (!state.knobMovedEnough) {
+            if (movedDistance < ROLLER_TAP_DRAG_THRESHOLD_PX) {
+              event.preventDefault();
+              return;
+            }
+
+            state.knobMovedEnough = true;
+            state.knobLastAngle = getRollerAngle(event);
+            state.knobRemainder = 0;
+            if (state.tapTempoTimestamps.length || state.tapTempoSongId || state.tapTempoResetTimer !== null) {
+              resetTapTempoState();
+            }
+            event.preventDefault();
+            return;
+          }
+
           const angle = getRollerAngle(event);
           const deltaAngle = normalizeAngleDelta(angle - state.knobLastAngle);
           state.knobLastAngle = angle;
@@ -1776,10 +1926,15 @@
 
         function onRollerPointerEnd(event) {
           if (!state.knobDragActive) return;
+          const shouldRegisterTap = event.type === "pointerup" && !state.knobMovedEnough;
           state.knobDragActive = false;
+          state.knobMovedEnough = false;
           state.knobRemainder = 0;
           if (event.pointerId !== undefined && els.bpmRoller.hasPointerCapture(event.pointerId)) {
             els.bpmRoller.releasePointerCapture(event.pointerId);
+          }
+          if (shouldRegisterTap) {
+            registerTapTempo();
           }
         }
 

@@ -285,7 +285,7 @@
                   id="bpmRoller"
                   role="slider"
                   tabindex="0"
-                  aria-label="BPM roller"
+                  aria-label="BPM roller. Drag to adjust or tap twice to set tempo"
                   aria-valuemin="20"
                   aria-valuemax="240"
                   aria-valuenow="120"
@@ -293,6 +293,14 @@
                 >
                   <div id="bpmRollerProgress" class="pointer-events-none absolute inset-0 rounded-full"></div>
                   <div class="pointer-events-none absolute inset-[0.6rem] rounded-full bg-neutral-900 border border-neutral-700/80"></div>
+                  <div class="pointer-events-none absolute inset-[1.55rem] flex items-center justify-center">
+                    <span
+                      id="bpmRollerLabel"
+                      class="bpm-roller-label text-[0.84rem] font-black uppercase tracking-[0.13em] text-neutral-400"
+                    >
+                      Tap
+                    </span>
+                  </div>
                   <div id="bpmRollerDial" class="pointer-events-none absolute inset-0">
                     <div class="bpm-dial-indicator absolute"></div>
                   </div>
