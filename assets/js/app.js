@@ -972,6 +972,12 @@
           els.bpmRollerDial.style.transform = `rotate(${state.bpmKnobAngle}deg)`;
         }
 
+        function setPlayButtonVisualState(isPlaying) {
+          els.playBtn.dataset.playing = isPlaying ? "true" : "false";
+          els.playBtn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+          els.playBtn.classList.toggle("is-active", isPlaying);
+        }
+
         function updateDocumentTitle() {
           const active = getActiveSong();
           if (!active) {
@@ -1006,10 +1012,9 @@
           const hasSong = Boolean(song);
           const useAccents = hasSong && toBoolean(song.useAccents);
           const doubleTime = hasSong && toBoolean(song.doubleTime);
-          const mobileRhythmPills = document.body.classList.contains("mobile-mode");
 
-          els.accentToggleBtn.textContent = mobileRhythmPills ? "A" : "Accent";
-          els.doubleTimeToggleBtn.textContent = mobileRhythmPills ? "D" : "Double Time";
+          els.accentToggleBtn.textContent = "Accent";
+          els.doubleTimeToggleBtn.textContent = "Double Time";
           els.accentToggleBtn.setAttribute("aria-label", "Accent");
           els.doubleTimeToggleBtn.setAttribute("aria-label", "Double Time");
           els.accentToggleBtn.title = "Accent";
@@ -1171,6 +1176,7 @@
             renderRollerRangeByBpm(BPM_MIN);
             renderSignatureControls(null);
             renderRhythmToggles(null, null);
+            setPlayButtonVisualState(false);
             disableTransport(true);
             return;
           }
@@ -1202,6 +1208,7 @@
           renderRollerRangeByBpm(active.bpm);
           renderSignatureControls(parsed.label);
           renderRhythmToggles(active, parsed);
+          setPlayButtonVisualState(state.isPlaying);
           disableTransport(false);
         }
 
@@ -1921,8 +1928,7 @@
           state.nextNoteTime = state.audioContext.currentTime + 0.05;
           state.lastScheduledNoteTime = 0;
           state.isPlaying = true;
-          els.playBtn.textContent = "⏸";
-          els.playBtn.classList.add("is-active");
+          setPlayButtonVisualState(true);
           clearVisualTimers();
           scheduler();
           await requestWakeLock();
@@ -1941,8 +1947,7 @@
 
           clearVisualTimers();
 
-          els.playBtn.textContent = "▶";
-          els.playBtn.classList.remove("is-active");
+          setPlayButtonVisualState(false);
           releaseWakeLock();
         }
 
