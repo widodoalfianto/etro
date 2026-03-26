@@ -11,7 +11,7 @@
         const SONG_TITLE_MAX_LENGTH = 18;
         const SHARE_HASH_KEY = "sl";
         const SHARE_SCHEMA_VERSION = 2;
-        const APP_SHELL_REFRESH_URLS = ["./index.html", "./assets/css/styles.css", "./assets/js/app.js", "./manifest.json"];
+        const APP_SHELL_REFRESH_URLS = ["./index.html", "./assets/css/app-shell.css", "./assets/js/app.js", "./manifest.json"];
         const APP_SHELL_STALE_AFTER_MS = 60 * 1000;
 
         function makeId() {
@@ -124,14 +124,16 @@
 
         function registerServiceWorker() {
           if (!("serviceWorker" in navigator)) return;
-          window.addEventListener("load", async () => {
-            try {
-              state.serviceWorkerRegistration = await navigator.serviceWorker.register("./sw.js");
+
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((registration) => {
+              state.serviceWorkerRegistration = registration;
               refreshAppShellInBackground(true);
-            } catch (error) {
+            })
+            .catch((error) => {
               console.warn("Service worker registration failed", error);
-            }
-          });
+            });
         }
 
         async function refreshAppShell(force = false) {
@@ -1161,8 +1163,7 @@
           if (!active) {
             state.titleEditSongId = null;
             els.currentSongTitle.textContent = "No Song Selected";
-            els.currentSongTitle.classList.remove("text-neutral-500");
-            els.currentSongTitle.classList.add("text-neutral-100");
+            els.currentSongTitle.classList.remove("is-placeholder");
             els.currentSongTitle.classList.remove("hidden");
             els.songTitleEditInput.classList.add("hidden");
             els.bpmDisplay.textContent = "--";
@@ -1190,8 +1191,7 @@
           } else {
             const titleState = getSongTitleForMainView(active);
             els.currentSongTitle.textContent = titleState.title;
-            els.currentSongTitle.classList.toggle("text-neutral-500", titleState.isPlaceholder);
-            els.currentSongTitle.classList.toggle("text-neutral-100", !titleState.isPlaceholder);
+            els.currentSongTitle.classList.toggle("is-placeholder", titleState.isPlaceholder);
             els.currentSongTitle.classList.remove("hidden");
             els.songTitleEditInput.classList.add("hidden");
             hideSongTitleLimitInfo();
@@ -1271,8 +1271,8 @@
             ? `<span class="song-title block text-base font-black leading-tight ${isActive ? "text-lime-200" : "text-neutral-100"}">${escapeHtml(title)}</span>`
             : "";
           const signatureClass = hasTitle
-            ? `whitespace-nowrap text-[0.66rem] font-semibold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
-            : `whitespace-nowrap text-sm font-semibold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
+            ? `whitespace-nowrap text-[0.66rem] font-bold uppercase tracking-[0.18em] ${isActive ? "text-lime-300/80" : "text-neutral-400"}`
+            : `whitespace-nowrap text-sm font-bold tracking-[0.12em] ${isActive ? "text-lime-300/80" : "text-neutral-300"}`;
           const signatureRowClass = hasTitle
             ? "mt-1 flex items-center gap-1.5 flex-nowrap"
             : "flex items-center gap-1.5 flex-nowrap";
@@ -1290,7 +1290,7 @@
                     ${optionPills}
                   </span>
                 </span>
-                <span class="text-xl font-black ${isActive ? "text-lime-300" : "text-neutral-200"}">${song.bpm}</span>
+                <span class="text-xl font-bold ${isActive ? "text-lime-300" : "text-neutral-200"}">${song.bpm}</span>
               </button>
               <button type="button" class="song-delete line-ui danger-line-ui flex min-h-[3.6rem] min-w-[3.1rem] items-center justify-center rounded-lg px-2 text-red-300" aria-label="Delete song">
                 <svg class="pointer-events-none h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">

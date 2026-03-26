@@ -33,9 +33,8 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" type="image/svg+xml" href="./assets/icons/favicon.svg" />
     <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
-    <link href="https://fonts.cdnfonts.com/css/alliance-no1" rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./assets/css/styles.css" />
+    <link rel="preload" href="./assets/fonts/Degarism%20Studio%20-%20Alliance%20No.1%20Light.otf" as="font" type="font/otf" />
+    <link rel="stylesheet" href="./assets/css/app-shell.css" />
   </head>
   <body class="bg-neutral-950 text-neutral-100 selection:bg-lime-400 selection:text-black">
     <div class="app-shell min-h-screen px-4 py-4 sm:px-6 sm:py-6">
@@ -52,7 +51,7 @@
                     <button
                       id="currentSongTitle"
                       type="button"
-                      class="line-ui inline-block max-w-full rounded-xl px-1.5 py-1.5 text-left text-4xl font-black leading-tight sm:text-5xl"
+                      class="song-title-trigger inline-block max-w-full rounded-xl px-1.5 py-1.5 text-left text-4xl font-black leading-tight sm:text-5xl"
                     >
                       No Song Selected
                     </button>

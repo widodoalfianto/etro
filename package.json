@@ -1,0 +1,12 @@
+{
+  "name": "etro",
+  "private": true,
+  "version": "1.0.1",
+  "scripts": {
+    "build:css": "tailwindcss -c ./tailwind.config.js -i ./assets/css/styles.css -o ./assets/css/app-shell.css --minify",
+    "watch:css": "tailwindcss -c ./tailwind.config.js -i ./assets/css/styles.css -o ./assets/css/app-shell.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

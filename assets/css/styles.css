@@ -1,21 +1,33 @@
+      /*
+       * Source stylesheet for the local app shell build.
+       * Run `npm run build:css` to regenerate `assets/css/app-shell.css`.
+       */
+      @tailwind base;
+      @tailwind components;
+      @tailwind utilities;
+
+      @font-face {
+        font-family: "Alliance No.1";
+        font-style: normal;
+        font-weight: 300;
+        font-display: swap;
+        src: url("../fonts/Degarism Studio - Alliance No.1 Light.otf") format("opentype");
+      }
+
       :root {
         color-scheme: dark;
+        --etro-font-stack: "Alliance No.1", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       }
 
       body {
-        font-family: "Alliance No.2", "Alliance No.1", "Alliance 2", "Segoe UI", "Arial", sans-serif;
+        font-family: var(--etro-font-stack);
       }
 
       /*
-       * Alliance CDN currently serves only light faces here, so use a mild
-       * synthetic stroke on key controls that must read as bold.
+       * Alliance No.1 is a light face, so keep a mild synthetic stroke on the
+       * heaviest controls to preserve the existing punch.
        */
-      #accentToggleBtn,
-      #doubleTimeToggleBtn,
-      #shareSetlistBtn,
-      #openImportSetlistBtn,
       #setlistPanel h2,
-      #clearSetlistBtn,
       #clearConfirmModal h3,
       #deleteConfirmModal h3,
       #shareSetlistModal h3,
@@ -43,6 +55,20 @@
 
       #clearSetlistBtn {
         font-size: 0.93rem;
+      }
+
+      #currentSongTitle,
+      #songTitleEditInput,
+      #bpmDisplay,
+      #timeSignatureLabel,
+      #accentToggleBtn,
+      #doubleTimeToggleBtn,
+      #openImportSetlistBtn,
+      #shareSetlistBtn,
+      #clearSetlistBtn {
+        font-weight: 700 !important;
+        -webkit-text-stroke: 0.18px currentColor;
+        text-shadow: 0 0 0 currentColor;
       }
 
       #clearConfirmModal h3,
@@ -77,6 +103,10 @@
         background: rgba(23, 23, 23, 0.96);
         box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.16) inset, 0 8px 24px rgba(0, 0, 0, 0.45);
         backdrop-filter: blur(2px);
+      }
+
+      .title-limit-dialog.hidden {
+        display: none;
       }
 
       .setlist-scroll::-webkit-scrollbar {
@@ -204,7 +234,6 @@
       #accentToggleBtn,
       #doubleTimeToggleBtn {
         touch-action: manipulation;
-        font-weight: 900 !important;
       }
 
       #accentToggleBtn:not(.is-active):hover,
@@ -276,6 +305,61 @@
         white-space: nowrap;
         font-size: clamp(2rem, 4.2vw, 3.2rem);
         line-height: 1.05;
+        position: relative;
+        color: rgb(245 245 245);
+        transition: background-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+      }
+
+      #currentSongTitle.hidden {
+        display: none;
+      }
+
+      #currentSongTitle::after {
+        content: "";
+        position: absolute;
+        left: 0.2rem;
+        right: 0.2rem;
+        bottom: -0.25rem;
+        height: 2px;
+        border-radius: 999px;
+        background: rgba(82, 82, 82, 0.95);
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      #currentSongTitle:hover,
+      #currentSongTitle:focus-visible {
+        background: rgba(163, 230, 53, 0.09);
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.22) inset, 0 0 20px rgba(163, 230, 53, 0.2);
+        color: rgb(236 252 203);
+        outline: none;
+      }
+
+      #currentSongTitle:hover::after,
+      #currentSongTitle:focus-visible::after {
+        background: rgba(163, 230, 53, 0.95);
+        box-shadow: 0 0 14px rgba(163, 230, 53, 0.45);
+      }
+
+      #currentSongTitle.is-placeholder {
+        color: rgb(115 115 115);
+      }
+
+      #currentSongTitle.is-placeholder::after {
+        background: rgba(64, 64, 64, 0.9);
+        box-shadow: none;
+      }
+
+      #currentSongTitle.is-placeholder:hover,
+      #currentSongTitle.is-placeholder:focus-visible {
+        background: rgba(64, 64, 64, 0.18);
+        box-shadow: 0 0 0 1px rgba(115, 115, 115, 0.26) inset;
+        color: rgb(212 212 212);
+      }
+
+      #currentSongTitle.is-placeholder:hover::after,
+      #currentSongTitle.is-placeholder:focus-visible::after {
+        background: rgba(163, 163, 163, 0.92);
+        box-shadow: none;
       }
 
       #songTitleEditInput {
@@ -300,10 +384,6 @@
         #songTitleEditInput {
           font-size: clamp(1.62rem, 3.2vw, 2.3rem);
         }
-      }
-
-      #currentSongTitle.line-ui::after {
-        bottom: -0.25rem;
       }
 
       .setlist-row {
