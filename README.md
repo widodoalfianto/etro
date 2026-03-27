@@ -16,7 +16,7 @@ It keeps the main controls large, the setlist close at hand, and the timing stab
 - Time signatures: `4/4`, `6/8`, `3/4`, and custom
 - Custom signatures support top values `1-32` and bottom values `2`, `4`, `8`, or `16` such as `13/16`
 - Accent toggle with editable accent-map beats
-- Double Time toggle per song
+- Double Time subdivision toggle per song that preserves the base tempo
 - Export/share links and import flow with destructive-action confirmation
 - Persistent local data via `localStorage`
 - Installable PWA with offline support and Wake Lock when available
