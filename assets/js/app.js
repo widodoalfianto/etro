@@ -59,6 +59,8 @@
           lastScheduledNoteTime: 0,
           currentBeat: 0,
           activeBeatsPerBar: 4,
+          visualBeatNumber: null,
+          visualBeatIsAccented: false,
           visualTimers: [],
           wakeLock: null,
           bpmKnobAngle: 0,
@@ -88,6 +90,7 @@
         const scheduleAheadTime = 0.12;
 
         const els = {
+          livePanel: document.getElementById("livePanel"),
           currentSongTitle: document.getElementById("currentSongTitle"),
           songTitleEditInput: document.getElementById("songTitleEditInput"),
           songTitleLimitInfo: document.getElementById("songTitleLimitInfo"),
@@ -1103,6 +1106,13 @@
           return accentBeats.includes(beatNumber);
         }
 
+        function getAccentBeatSet(song, parsedSignature) {
+          if (!song || !parsedSignature) return new Set();
+          const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
+          const accentBeats = normalizeAccentBeats(song.accentBeats, parsedSignature.beatsPerBar, defaultAccentBeats);
+          return new Set(accentBeats);
+        }
+
         function renderRhythmToggles(song, parsedSignature) {
           const hasSong = Boolean(song);
           const useAccents = hasSong && toBoolean(song.useAccents);
@@ -1123,12 +1133,11 @@
             els.accentMapPanel.classList.add("hidden");
             els.accentMapPanel.classList.remove("accent-map-disabled");
             els.accentBeatButtons.innerHTML = "";
+            clearBeatIndicatorHighlight(true);
             return;
           }
 
-          const defaultAccentBeats = getAccentBeatsForSignature(parsedSignature.label);
-          const accentBeats = normalizeAccentBeats(song.accentBeats, parsedSignature.beatsPerBar, defaultAccentBeats);
-          const accentSet = new Set(accentBeats);
+          const accentSet = getAccentBeatSet(song, parsedSignature);
           const beatButtons = Array.from({ length: parsedSignature.beatsPerBar }, (_, index) => {
             const beatNumber = index + 1;
             const selectedClass = accentSet.has(beatNumber) ? " is-selected" : "";
@@ -1138,6 +1147,7 @@
           els.accentBeatButtons.innerHTML = beatButtons;
           els.accentMapPanel.classList.toggle("accent-map-disabled", !useAccents);
           els.accentMapPanel.classList.remove("hidden");
+          syncBeatIndicatorHighlight();
         }
 
         function openTitleEditor() {
@@ -2098,10 +2108,41 @@
           scheduleOscillatorClick(noteTime, isAccented);
         }
 
-        function clearBeatIndicatorHighlight() {
+        function syncLivePanelPulse() {
+          els.livePanel.classList.remove("is-beat-pulse", "is-accent-pulse");
+          if (!Number.isFinite(state.visualBeatNumber)) return;
+          els.livePanel.classList.add(state.visualBeatIsAccented ? "is-accent-pulse" : "is-beat-pulse");
+        }
+
+        function clearBeatIndicatorHighlight(resetState = false) {
           els.accentBeatButtons
             .querySelectorAll(".is-current-beat, .is-current-accent")
             .forEach((node) => node.classList.remove("is-current-beat", "is-current-accent"));
+
+          if (resetState) {
+            state.visualBeatNumber = null;
+            state.visualBeatIsAccented = false;
+          }
+
+          syncLivePanelPulse();
+        }
+
+        function syncBeatIndicatorHighlight() {
+          clearBeatIndicatorHighlight();
+          if (!Number.isFinite(state.visualBeatNumber)) return;
+
+          els.accentBeatButtons.querySelectorAll(`[data-accent-beat="${state.visualBeatNumber}"]`).forEach((node) => {
+            node.classList.add("is-current-beat");
+            if (state.visualBeatIsAccented) {
+              node.classList.add("is-current-accent");
+            }
+          });
+        }
+
+        function setCurrentBeatIndicator(beatNumber, isAccented) {
+          state.visualBeatNumber = beatNumber;
+          state.visualBeatIsAccented = Boolean(isAccented);
+          syncBeatIndicatorHighlight();
         }
 
         function queueBeatIndicatorPulse(noteTime, beatInBar, isAccented) {
@@ -2110,18 +2151,11 @@
           const beatNumber = beatInBar + 1;
           const timeoutId = window.setTimeout(() => {
             if (!state.isPlaying) return;
-
-            const beatButton = els.accentBeatButtons.querySelector(`[data-accent-beat="${beatNumber}"]`);
-            if (!beatButton) return;
-
-            clearBeatIndicatorHighlight();
-            beatButton.classList.add("is-current-beat");
-            if (isAccented) {
-              beatButton.classList.add("is-current-accent");
-            }
+            setCurrentBeatIndicator(beatNumber, isAccented);
 
             const releaseId = window.setTimeout(() => {
-              beatButton.classList.remove("is-current-beat", "is-current-accent");
+              if (state.visualBeatNumber !== beatNumber) return;
+              clearBeatIndicatorHighlight(true);
             }, 80);
             state.visualTimers.push(releaseId);
           }, delayMs);
@@ -2132,7 +2166,7 @@
         function clearVisualTimers() {
           state.visualTimers.forEach((id) => window.clearTimeout(id));
           state.visualTimers = [];
-          clearBeatIndicatorHighlight();
+          clearBeatIndicatorHighlight(true);
         }
 
         function nextNote() {
