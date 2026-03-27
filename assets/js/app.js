@@ -49,6 +49,8 @@
           };
         }
 
+        const observedServiceWorkerRegistrations = new WeakSet();
+
         const state = {
           songs: [],
           activeSongId: null,
@@ -92,6 +94,10 @@
           shareLink: "",
           pendingImportSetlist: null,
           serviceWorkerRegistration: null,
+          hadServiceWorkerControllerOnLoad:
+            "serviceWorker" in navigator ? Boolean(navigator.serviceWorker.controller) : false,
+          shouldReloadOnServiceWorkerControl: false,
+          didReloadForServiceWorkerUpdate: false,
           appShellRefreshPromise: null,
           lastAppShellRefreshAt: 0,
           dragSort: null,
@@ -160,13 +166,74 @@
           confirmImportModalBtn: document.getElementById("confirmImportModalBtn")
         };
 
+        function requestServiceWorkerActivation(registration) {
+          const waitingWorker = registration?.waiting;
+          if (!waitingWorker) return;
+
+          if (navigator.serviceWorker.controller) {
+            state.shouldReloadOnServiceWorkerControl = true;
+          }
+
+          waitingWorker.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        function observeInstallingServiceWorker(worker, registration) {
+          if (!worker) return;
+
+          worker.addEventListener("statechange", () => {
+            if (worker.state !== "installed") return;
+
+            if (navigator.serviceWorker.controller) {
+              state.shouldReloadOnServiceWorkerControl = true;
+            }
+
+            requestServiceWorkerActivation(registration);
+          });
+        }
+
+        function observeServiceWorkerRegistration(registration) {
+          if (!registration || observedServiceWorkerRegistrations.has(registration)) return;
+
+          observedServiceWorkerRegistrations.add(registration);
+
+          if (registration.waiting) {
+            requestServiceWorkerActivation(registration);
+          }
+
+          if (registration.installing) {
+            observeInstallingServiceWorker(registration.installing, registration);
+          }
+
+          registration.addEventListener("updatefound", () => {
+            observeInstallingServiceWorker(registration.installing, registration);
+          });
+        }
+
+        function handleServiceWorkerControllerChange() {
+          if (state.didReloadForServiceWorkerUpdate) return;
+
+          const shouldReload =
+            state.shouldReloadOnServiceWorkerControl || state.hadServiceWorkerControllerOnLoad;
+
+          state.hadServiceWorkerControllerOnLoad = true;
+          state.shouldReloadOnServiceWorkerControl = false;
+
+          if (!shouldReload) return;
+
+          state.didReloadForServiceWorkerUpdate = true;
+          window.location.reload();
+        }
+
         function registerServiceWorker() {
           if (!("serviceWorker" in navigator)) return;
+
+          navigator.serviceWorker.addEventListener("controllerchange", handleServiceWorkerControllerChange);
 
           navigator.serviceWorker
             .register("./sw.js")
             .then((registration) => {
               state.serviceWorkerRegistration = registration;
+              observeServiceWorkerRegistration(registration);
               refreshAppShellInBackground(true);
             })
             .catch((error) => {
@@ -195,6 +262,7 @@
             if (!registration) return;
 
             state.serviceWorkerRegistration = registration;
+            observeServiceWorkerRegistration(registration);
             await registration.update().catch((error) => {
               console.warn("Service worker update check failed", error);
             });
