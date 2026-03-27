@@ -1,4 +1,4 @@
-const CACHE_NAME = "etro-cache-v8";
+const CACHE_NAME = "etro-cache-v9";
 
 const CORE_ASSETS = [
   "./",
@@ -35,6 +35,11 @@ self.addEventListener("install", (event) => {
       .then((cache) => cache.addAll(CORE_ASSET_URLS))
       .then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "SKIP_WAITING") return;
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
