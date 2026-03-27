@@ -484,6 +484,44 @@
         color: rgb(254 215 170);
       }
 
+      #livePanel {
+        transition: border-color 90ms ease, box-shadow 90ms ease, transform 90ms ease;
+      }
+
+      #livePanel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0;
+        background:
+          radial-gradient(circle at 50% 44%, rgba(163, 230, 53, 0.16), transparent 62%),
+          linear-gradient(180deg, rgba(163, 230, 53, 0.08), transparent 72%);
+        transition: opacity 70ms linear, background 70ms linear;
+      }
+
+      #livePanel.is-beat-pulse {
+        border-color: rgba(163, 230, 53, 0.45);
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.16) inset, 0 0 40px rgba(163, 230, 53, 0.16);
+      }
+
+      #livePanel.is-beat-pulse::before {
+        opacity: 1;
+      }
+
+      #livePanel.is-accent-pulse {
+        border-color: rgba(45, 212, 191, 0.48);
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.18) inset, 0 0 42px rgba(45, 212, 191, 0.18);
+      }
+
+      #livePanel.is-accent-pulse::before {
+        opacity: 1;
+        background:
+          radial-gradient(circle at 50% 44%, rgba(45, 212, 191, 0.16), transparent 62%),
+          linear-gradient(180deg, rgba(45, 212, 191, 0.08), transparent 72%);
+      }
+
       .accent-beat-btn.line-ui::after {
         left: 0.35rem;
         right: 0.35rem;
