@@ -13,6 +13,10 @@
         const SHARE_SCHEMA_VERSION = 2;
         const APP_SHELL_REFRESH_URLS = ["./index.html", "./assets/css/app-shell.css", "./assets/js/app.js", "./manifest.json"];
         const APP_SHELL_STALE_AFTER_MS = 60 * 1000;
+        const CLICK_SOUND_ASSETS = {
+          normal: "./assets/audio/Metronome.wav",
+          accent: "./assets/audio/MetronomeUp.wav"
+        };
         const TAP_TEMPO_MIN_TAPS = 2;
         const TAP_TEMPO_MAX_INTERVALS = 6;
         const TAP_TEMPO_RESET_MS = 2200;
@@ -45,6 +49,11 @@
           activeSongId: null,
           isPlaying: false,
           audioContext: null,
+          clickBuffers: {
+            normal: null,
+            accent: null
+          },
+          clickBufferLoadPromise: null,
           schedulerTimer: null,
           nextNoteTime: 0,
           lastScheduledNoteTime: 0,
@@ -1985,7 +1994,69 @@
           }
         }
 
-        function scheduleClick(noteTime, isAccented) {
+        function decodeAudioBuffer(audioData) {
+          return new Promise((resolve, reject) => {
+            let settled = false;
+            const onResolve = (buffer) => {
+              if (settled) return;
+              settled = true;
+              resolve(buffer);
+            };
+            const onReject = (error) => {
+              if (settled) return;
+              settled = true;
+              reject(error);
+            };
+
+            try {
+              const maybePromise = state.audioContext.decodeAudioData(audioData, onResolve, onReject);
+              if (maybePromise && typeof maybePromise.then === "function") {
+                maybePromise.then(onResolve, onReject);
+              }
+            } catch (error) {
+              onReject(error);
+            }
+          });
+        }
+
+        async function loadClickBuffer(assetUrl) {
+          const response = await fetch(assetUrl, { credentials: "same-origin" });
+          if (!response.ok) {
+            throw new Error(`Failed to fetch click sample: ${assetUrl}`);
+          }
+          const audioData = await response.arrayBuffer();
+          return decodeAudioBuffer(audioData.slice(0));
+        }
+
+        async function ensureClickBuffers() {
+          if (!state.audioContext) return state.clickBuffers;
+          if (state.clickBuffers.normal && state.clickBuffers.accent) {
+            return state.clickBuffers;
+          }
+          if (state.clickBufferLoadPromise) {
+            return state.clickBufferLoadPromise;
+          }
+
+          state.clickBufferLoadPromise = Promise.all([
+            loadClickBuffer(CLICK_SOUND_ASSETS.normal),
+            loadClickBuffer(CLICK_SOUND_ASSETS.accent)
+          ])
+            .then(([normal, accent]) => {
+              state.clickBuffers = { normal, accent };
+              return state.clickBuffers;
+            })
+            .catch((error) => {
+              console.warn("Could not load click samples; falling back to synthesized click.", error);
+              return state.clickBuffers;
+            })
+            .finally(() => {
+              state.clickBufferLoadPromise = null;
+            });
+
+          return state.clickBufferLoadPromise;
+        }
+
+        function scheduleOscillatorClick(noteTime, isAccented) {
           const ctx = state.audioContext;
           const oscillator = ctx.createOscillator();
           const gainNode = ctx.createGain();
@@ -2002,6 +2073,29 @@
 
           oscillator.start(noteTime);
           oscillator.stop(noteTime + 0.05);
+        }
+
+        function scheduleSampleClick(noteTime, isAccented) {
+          const ctx = state.audioContext;
+          const buffer = isAccented ? state.clickBuffers.accent : state.clickBuffers.normal;
+          if (!ctx || !buffer) return false;
+
+          const source = ctx.createBufferSource();
+          const gainNode = ctx.createGain();
+
+          source.buffer = buffer;
+          gainNode.gain.value = 1;
+
+          source.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          source.start(noteTime);
+
+          return true;
+        }
+
+        function scheduleClick(noteTime, isAccented) {
+          if (scheduleSampleClick(noteTime, isAccented)) return;
+          scheduleOscillatorClick(noteTime, isAccented);
         }
 
         function clearBeatIndicatorHighlight() {
@@ -2077,6 +2171,7 @@
           if (!active || state.isPlaying) return;
 
           await ensureAudioContext();
+          await ensureClickBuffers();
           const parsed = parseTimeSignature(active.timeSignature);
           state.activeBeatsPerBar = parsed.beatsPerBar;
           state.currentBeat = 0;

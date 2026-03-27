@@ -1,10 +1,12 @@
-const CACHE_NAME = "etro-cache-v7";
+const CACHE_NAME = "etro-cache-v8";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./assets/css/app-shell.css",
   "./assets/js/app.js",
+  "./assets/audio/Metronome.wav",
+  "./assets/audio/MetronomeUp.wav",
   "./manifest.json",
   "./assets/fonts/Degarism Studio - Alliance No.1 Light.otf",
   "./assets/icons/favicon.svg",
