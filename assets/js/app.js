@@ -1398,8 +1398,20 @@
           const signatureRowClass = hasTitle
             ? "mt-1 flex items-center gap-1.5 flex-nowrap"
             : "flex items-center gap-1.5 flex-nowrap";
-          const accentPill = song.useAccents ? '<span class="song-pill song-pill-accent" title="Accented beats">A</span>' : "";
-          const doublePill = song.doubleTime ? '<span class="song-pill song-pill-double" title="Double time">D</span>' : "";
+          const accentPill = song.useAccents
+            ? `<span class="song-pill song-pill-accent" role="img" aria-label="Accented beats" title="Accented beats">
+                <svg class="song-pill-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M3.4 11.6 8 4.5l4.6 7.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>`
+            : "";
+          const doublePill = song.doubleTime
+            ? `<span class="song-pill song-pill-double" role="img" aria-label="Double time subdivision" title="Double time subdivision">
+                <svg class="song-pill-icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M3.5 11.6V8.9M6.5 11.6V5.8M9.5 11.6V8.1M12.5 11.6V4.1" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                </svg>
+              </span>`
+            : "";
           const optionPills = accentPill || doublePill ? `<span class="flex shrink-0 items-center gap-1 flex-nowrap">${accentPill}${doublePill}</span>` : "";
 
           return `
