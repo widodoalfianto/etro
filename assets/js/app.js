@@ -808,6 +808,10 @@
         }
 
         function applyImportedSetlist(parsedImport) {
+          if (state.isPlaying) {
+            stopMetronome();
+          }
+
           state.songs = parsedImport.songs;
           state.activeSongId = parsedImport.activeSongId;
           state.titleEditSongId = null;
@@ -820,10 +824,6 @@
 
           saveSongs();
           renderAll();
-
-          if (state.isPlaying) {
-            refreshPlayingTransport({ resetBeat: true });
-          }
         }
 
         function buildShareLink() {
@@ -1962,13 +1962,13 @@
         function confirmClearSetlist() {
           closeClearConfirmModal();
 
+          if (state.isPlaying) {
+            stopMetronome();
+          }
+
           resetToDefaultSetlist();
           saveSongs();
           renderAll();
-
-          if (state.isPlaying) {
-            refreshPlayingTransport({ resetBeat: true });
-          }
         }
 
         function selectSong(songId) {
