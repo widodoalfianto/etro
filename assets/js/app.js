@@ -57,10 +57,15 @@
           schedulerTimer: null,
           nextNoteTime: 0,
           lastScheduledNoteTime: 0,
+          lastScheduledBeat: 0,
+          lastScheduledSubdivision: 0,
+          lastScheduledTicksPerBeat: 1,
           currentBeat: 0,
+          currentSubdivision: 0,
           activeBeatsPerBar: 4,
           visualBeatNumber: null,
-          visualBeatIsAccented: false,
+          visualPulseTone: null,
+          visualPulseToken: 0,
           visualTimers: [],
           wakeLock: null,
           bpmKnobAngle: 0,
@@ -1839,10 +1844,43 @@
           updateActiveSongRhythmOptions({ useAccents: true, accentBeats: nextAccentBeats });
         }
 
+        function getTicksPerBeat(song) {
+          return song?.doubleTime ? 2 : 1;
+        }
+
+        function getSecondsPerBeatForSong(song) {
+          return 60 / clampBpm(song?.bpm);
+        }
+
         function getSecondsPerTickForSong(song) {
-          const safeBpm = clampBpm(song?.bpm);
-          const multiplier = song?.doubleTime ? 2 : 1;
-          return 60 / (safeBpm * multiplier);
+          return getSecondsPerBeatForSong(song) / getTicksPerBeat(song);
+        }
+
+        function getNextTickFromLastScheduled(song) {
+          const beatDuration = getSecondsPerBeatForSong(song);
+          const previousTicksPerBeat = Math.max(1, Number.parseInt(state.lastScheduledTicksPerBeat, 10) || 1);
+          const nextTicksPerBeat = getTicksPerBeat(song);
+          const safeLastSubdivision = Math.min(
+            previousTicksPerBeat - 1,
+            Math.max(0, Number.parseInt(state.lastScheduledSubdivision, 10) || 0)
+          );
+          const lastPositionInBeat = safeLastSubdivision / previousTicksPerBeat;
+
+          for (let subdivisionIndex = 0; subdivisionIndex < nextTicksPerBeat; subdivisionIndex += 1) {
+            const subdivisionPosition = subdivisionIndex / nextTicksPerBeat;
+            if (subdivisionPosition <= lastPositionInBeat + 0.0001) continue;
+            return {
+              beatIndex: state.lastScheduledBeat,
+              subdivisionIndex,
+              secondsUntilTick: (subdivisionPosition - lastPositionInBeat) * beatDuration
+            };
+          }
+
+          return {
+            beatIndex: (state.lastScheduledBeat + 1) % state.activeBeatsPerBar,
+            subdivisionIndex: 0,
+            secondsUntilTick: (1 - lastPositionInBeat) * beatDuration
+          };
         }
 
         function refreshPlayingTransport(options = {}) {
@@ -1860,11 +1898,16 @@
 
           if (resetBeat) {
             state.currentBeat = 0;
+            state.currentSubdivision = 0;
+          } else if (state.lastScheduledNoteTime > 0) {
+            const nextTick = getNextTickFromLastScheduled(active);
+            state.currentBeat = nextTick.beatIndex;
+            state.currentSubdivision = nextTick.subdivisionIndex;
           }
 
           const pendingFutureNote = state.lastScheduledNoteTime > state.audioContext.currentTime + 0.01;
-          if (pendingFutureNote) {
-            state.nextNoteTime = state.lastScheduledNoteTime + getSecondsPerTickForSong(active);
+          if (pendingFutureNote && !resetBeat && state.lastScheduledNoteTime > 0) {
+            state.nextNoteTime = state.lastScheduledNoteTime + getNextTickFromLastScheduled(active).secondsUntilTick;
           } else {
             state.nextNoteTime = state.audioContext.currentTime + 0.05;
           }
@@ -2110,8 +2153,8 @@
 
         function syncLivePanelPulse() {
           els.livePanel.classList.remove("is-beat-pulse", "is-accent-pulse");
-          if (!Number.isFinite(state.visualBeatNumber)) return;
-          els.livePanel.classList.add(state.visualBeatIsAccented ? "is-accent-pulse" : "is-beat-pulse");
+          if (!state.visualPulseTone) return;
+          els.livePanel.classList.add(state.visualPulseTone === "accent" ? "is-accent-pulse" : "is-beat-pulse");
         }
 
         function clearBeatIndicatorHighlight(resetState = false) {
@@ -2121,7 +2164,7 @@
 
           if (resetState) {
             state.visualBeatNumber = null;
-            state.visualBeatIsAccented = false;
+            state.visualPulseTone = null;
           }
 
           syncLivePanelPulse();
@@ -2133,28 +2176,29 @@
 
           els.accentBeatButtons.querySelectorAll(`[data-accent-beat="${state.visualBeatNumber}"]`).forEach((node) => {
             node.classList.add("is-current-beat");
-            if (state.visualBeatIsAccented) {
+            if (state.visualPulseTone === "accent") {
               node.classList.add("is-current-accent");
             }
           });
         }
 
-        function setCurrentBeatIndicator(beatNumber, isAccented) {
-          state.visualBeatNumber = beatNumber;
-          state.visualBeatIsAccented = Boolean(isAccented);
+        function setCurrentBeatIndicator(beatNumber, pulseTone = "beat") {
+          state.visualPulseToken += 1;
+          state.visualBeatNumber = Number.isFinite(beatNumber) ? beatNumber : null;
+          state.visualPulseTone = pulseTone;
           syncBeatIndicatorHighlight();
+          return state.visualPulseToken;
         }
 
-        function queueBeatIndicatorPulse(noteTime, beatInBar, isAccented) {
+        function queueBeatIndicatorPulse(noteTime, beatNumber, pulseTone = "beat") {
           const ctx = state.audioContext;
           const delayMs = Math.max(0, (noteTime - ctx.currentTime) * 1000);
-          const beatNumber = beatInBar + 1;
           const timeoutId = window.setTimeout(() => {
             if (!state.isPlaying) return;
-            setCurrentBeatIndicator(beatNumber, isAccented);
+            const pulseToken = setCurrentBeatIndicator(beatNumber, pulseTone);
 
             const releaseId = window.setTimeout(() => {
-              if (state.visualBeatNumber !== beatNumber) return;
+              if (state.visualPulseToken !== pulseToken) return;
               clearBeatIndicatorHighlight(true);
             }, 80);
             state.visualTimers.push(releaseId);
@@ -2175,25 +2219,38 @@
 
           const secondsPerTick = getSecondsPerTickForSong(active);
           state.nextNoteTime += secondsPerTick;
+          const ticksPerBeat = getTicksPerBeat(active);
+          if (state.currentSubdivision + 1 < ticksPerBeat) {
+            state.currentSubdivision += 1;
+            return;
+          }
+
+          state.currentSubdivision = 0;
           state.currentBeat = (state.currentBeat + 1) % state.activeBeatsPerBar;
         }
 
-        function scheduleNote(beatInBar, noteTime) {
+        function scheduleNote(beatInBar, subdivisionIndex, noteTime) {
           const active = getActiveSong();
           if (!active) return;
 
           const parsed = parseTimeSignature(active.timeSignature);
-          const isAccented = isAccentStepInBar(beatInBar, active, parsed);
+          const isPrimaryTick = subdivisionIndex === 0;
+          const isAccented = isPrimaryTick && isAccentStepInBar(beatInBar, active, parsed);
+          const pulseTone = isAccented ? "accent" : "beat";
+          const pulseBeatNumber = isPrimaryTick ? beatInBar + 1 : null;
           state.lastScheduledNoteTime = noteTime;
+          state.lastScheduledBeat = beatInBar;
+          state.lastScheduledSubdivision = subdivisionIndex;
+          state.lastScheduledTicksPerBeat = getTicksPerBeat(active);
           scheduleClick(noteTime, isAccented);
-          queueBeatIndicatorPulse(noteTime, beatInBar, isAccented);
+          queueBeatIndicatorPulse(noteTime, pulseBeatNumber, pulseTone);
         }
 
         function scheduler() {
           if (!state.isPlaying || !state.audioContext) return;
 
           while (state.nextNoteTime < state.audioContext.currentTime + scheduleAheadTime) {
-            scheduleNote(state.currentBeat, state.nextNoteTime);
+            scheduleNote(state.currentBeat, state.currentSubdivision, state.nextNoteTime);
             nextNote();
           }
 
@@ -2209,8 +2266,12 @@
           const parsed = parseTimeSignature(active.timeSignature);
           state.activeBeatsPerBar = parsed.beatsPerBar;
           state.currentBeat = 0;
+          state.currentSubdivision = 0;
           state.nextNoteTime = state.audioContext.currentTime + 0.05;
           state.lastScheduledNoteTime = 0;
+          state.lastScheduledBeat = 0;
+          state.lastScheduledSubdivision = 0;
+          state.lastScheduledTicksPerBeat = getTicksPerBeat(active);
           state.isPlaying = true;
           setPlayButtonVisualState(true);
           clearVisualTimers();
@@ -2223,6 +2284,9 @@
 
           state.isPlaying = false;
           state.lastScheduledNoteTime = 0;
+          state.currentSubdivision = 0;
+          state.lastScheduledBeat = 0;
+          state.lastScheduledSubdivision = 0;
 
           if (state.schedulerTimer !== null) {
             window.clearTimeout(state.schedulerTimer);
