@@ -469,7 +469,15 @@
         color: rgb(190 242 100);
         font-size: 0.62rem;
         font-weight: 800;
+        line-height: 1;
         letter-spacing: 0.03em;
+      }
+
+      .song-pill-icon {
+        width: 0.78rem;
+        height: 0.78rem;
+        display: block;
+        flex: none;
       }
 
       .song-pill-accent {
