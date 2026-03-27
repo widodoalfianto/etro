@@ -23,6 +23,11 @@
         const ROLLER_TAP_DRAG_THRESHOLD_PX = 10;
         const TAP_TEMPO_IDLE_LABEL = "Tap";
         const TAP_TEMPO_PENDING_LABEL = "Again";
+        const SETLIST_DRAG_AUTOSCROLL_EDGE_PX = 54;
+        const SETLIST_DRAG_AUTOSCROLL_MAX_STEP_PX = 16;
+        const SETLIST_DRAG_START_THRESHOLD_PX = 8;
+        const SETLIST_DRAG_SWITCH_RATIO_DOWN = 0.24;
+        const SETLIST_DRAG_SWITCH_RATIO_UP = 0.82;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -88,7 +93,10 @@
           pendingImportSetlist: null,
           serviceWorkerRegistration: null,
           appShellRefreshPromise: null,
-          lastAppShellRefreshAt: 0
+          lastAppShellRefreshAt: 0,
+          dragSort: null,
+          pendingDragSort: null,
+          setlistClickSuppressUntil: 0
         };
 
         const lookaheadMs = 25;
@@ -1386,6 +1394,7 @@
 
         function getSetlistRowMarkup(song) {
           const isActive = song.id === state.activeSongId;
+          const canDrag = state.songs.length > 1;
           const rawTitle = String(song.name || "").trim();
           const title = rawTitle.length > SONG_TITLE_MAX_LENGTH ? `${rawTitle.slice(0, SONG_TITLE_MAX_LENGTH)}...` : rawTitle;
           const hasTitle = title.length > 0;
@@ -1415,8 +1424,8 @@
           const optionPills = accentPill || doublePill ? `<span class="flex shrink-0 items-center gap-1 flex-nowrap">${accentPill}${doublePill}</span>` : "";
 
           return `
-            <article class="setlist-row" data-song-id="${song.id}">
-              <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left">
+            <article class="setlist-row ${canDrag ? "is-draggable" : ""}" data-song-id="${song.id}">
+              <button type="button" class="song-select line-ui ${isActive ? "is-active" : ""} flex min-h-[3.6rem] flex-1 items-center justify-between rounded-lg px-2.5 text-left" ${canDrag ? 'aria-label="Select or drag song"' : ""}>
                 <span class="pr-2 min-w-0 flex-1">
                   ${titleMarkup}
                   <span class="${signatureRowClass}">
@@ -1517,6 +1526,284 @@
           if (state.isPlaying) {
             refreshPlayingTransport({ resetBeat: true });
           }
+        }
+
+        function getSongIndex(songId) {
+          return state.songs.findIndex((song) => song.id === songId);
+        }
+
+        function clearPendingSetlistDrag(pointerId = null) {
+          const pending = state.pendingDragSort;
+          if (!pending) return;
+          if (pointerId !== null && pending.pointerId !== pointerId) return;
+          state.pendingDragSort = null;
+        }
+
+        function reorderSongToIndex(songId, targetIndex, options = {}) {
+          const { render = true } = options;
+          const currentIndex = getSongIndex(songId);
+          if (currentIndex < 0) return false;
+
+          const boundedTargetIndex = Math.max(0, Math.min(state.songs.length - 1, targetIndex));
+          if (boundedTargetIndex === currentIndex) return false;
+
+          const nextSongs = [...state.songs];
+          const [movedSong] = nextSongs.splice(currentIndex, 1);
+          nextSongs.splice(boundedTargetIndex, 0, movedSong);
+          state.songs = nextSongs;
+          saveSongs();
+
+          if (render) {
+            renderSetlist();
+          }
+          return true;
+        }
+
+        function captureSetlistRowRects() {
+          const rects = new Map();
+
+          els.setlistContainer.querySelectorAll(".setlist-row").forEach((row) => {
+            const songId = row.getAttribute("data-song-id");
+            if (!songId) return;
+            rects.set(songId, row.getBoundingClientRect());
+          });
+
+          return rects;
+        }
+
+        function animateSetlistRowReflow(previousRects) {
+          if (!previousRects || !previousRects.size) return;
+
+          const rows = [...els.setlistContainer.querySelectorAll(".setlist-row")];
+          rows.forEach((row) => {
+            const songId = row.getAttribute("data-song-id");
+            if (!songId) return;
+
+            const previousRect = previousRects.get(songId);
+            if (!previousRect) return;
+
+            const nextRect = row.getBoundingClientRect();
+            const deltaY = previousRect.top - nextRect.top;
+            if (Math.abs(deltaY) < 0.5) return;
+
+            row.style.transition = "none";
+            row.style.transform = `translateY(${deltaY}px)`;
+            row.getBoundingClientRect();
+            row.style.transition = "transform 180ms cubic-bezier(0.22, 1, 0.36, 1)";
+            row.style.transform = "";
+
+            const cleanup = () => {
+              row.style.transition = "";
+              row.removeEventListener("transitionend", cleanup);
+            };
+            row.addEventListener("transitionend", cleanup);
+          });
+        }
+
+        function getSetlistPlaceholderIndex(placeholderEl) {
+          const items = [...els.setlistContainer.children].filter(
+            (child) => child === placeholderEl || child.classList.contains("setlist-row")
+          );
+          return items.indexOf(placeholderEl);
+        }
+
+        function positionDraggedSetlistOverlay(clientY) {
+          const drag = state.dragSort;
+          if (!drag) return;
+
+          drag.overlayEl.style.left = `${drag.originRect.left}px`;
+          drag.overlayEl.style.top = `${clientY - drag.pointerOffsetY}px`;
+          drag.overlayEl.style.width = `${drag.originRect.width}px`;
+          drag.overlayEl.style.height = `${drag.originRect.height}px`;
+        }
+
+        function moveSetlistPlaceholderToPointer(clientY) {
+          const drag = state.dragSort;
+          if (!drag) return;
+
+          const rows = [...els.setlistContainer.querySelectorAll(".setlist-row")];
+          let nextReferenceRow = null;
+          const switchRatio =
+            drag.travelDirection > 0
+              ? SETLIST_DRAG_SWITCH_RATIO_DOWN
+              : drag.travelDirection < 0
+                ? SETLIST_DRAG_SWITCH_RATIO_UP
+                : 0.5;
+
+          for (const row of rows) {
+            const rowRect = row.getBoundingClientRect();
+            if (clientY < rowRect.top + rowRect.height * switchRatio) {
+              nextReferenceRow = row;
+              break;
+            }
+          }
+
+          if (nextReferenceRow) {
+            if (drag.placeholderEl.nextSibling === nextReferenceRow) return;
+          } else if (drag.placeholderEl === els.setlistContainer.lastElementChild) {
+            return;
+          }
+
+          const previousRects = captureSetlistRowRects();
+          if (nextReferenceRow) {
+            els.setlistContainer.insertBefore(drag.placeholderEl, nextReferenceRow);
+          } else {
+            els.setlistContainer.appendChild(drag.placeholderEl);
+          }
+          animateSetlistRowReflow(previousRects);
+        }
+
+        function stopSetlistDragAutoScroll(drag = state.dragSort) {
+          if (!drag) return;
+          if (drag.autoScrollFrame) {
+            window.cancelAnimationFrame(drag.autoScrollFrame);
+            drag.autoScrollFrame = 0;
+          }
+          drag.autoScrollVelocity = 0;
+        }
+
+        function stepSetlistDragAutoScroll() {
+          const drag = state.dragSort;
+          if (!drag) return;
+
+          const container = els.setlistContainer;
+          if (!drag.autoScrollVelocity) {
+            drag.autoScrollFrame = 0;
+            return;
+          }
+
+          const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+          const nextScrollTop = Math.max(0, Math.min(maxScrollTop, container.scrollTop + drag.autoScrollVelocity));
+
+          if (nextScrollTop === container.scrollTop) {
+            drag.autoScrollFrame = 0;
+            return;
+          }
+
+          container.scrollTop = nextScrollTop;
+          positionDraggedSetlistOverlay(drag.currentClientY);
+          moveSetlistPlaceholderToPointer(drag.currentClientY);
+          drag.autoScrollFrame = window.requestAnimationFrame(stepSetlistDragAutoScroll);
+        }
+
+        function updateSetlistDragAutoScroll(clientY) {
+          const drag = state.dragSort;
+          if (!drag) return;
+
+          const containerRect = els.setlistContainer.getBoundingClientRect();
+          let velocity = 0;
+
+          if (clientY < containerRect.top + SETLIST_DRAG_AUTOSCROLL_EDGE_PX) {
+            const intensity = (containerRect.top + SETLIST_DRAG_AUTOSCROLL_EDGE_PX - clientY) / SETLIST_DRAG_AUTOSCROLL_EDGE_PX;
+            velocity = -Math.max(2, Math.round(SETLIST_DRAG_AUTOSCROLL_MAX_STEP_PX * intensity));
+          } else if (clientY > containerRect.bottom - SETLIST_DRAG_AUTOSCROLL_EDGE_PX) {
+            const intensity = (clientY - (containerRect.bottom - SETLIST_DRAG_AUTOSCROLL_EDGE_PX)) / SETLIST_DRAG_AUTOSCROLL_EDGE_PX;
+            velocity = Math.max(2, Math.round(SETLIST_DRAG_AUTOSCROLL_MAX_STEP_PX * intensity));
+          }
+
+          drag.autoScrollVelocity = velocity;
+          if (velocity && !drag.autoScrollFrame) {
+            drag.autoScrollFrame = window.requestAnimationFrame(stepSetlistDragAutoScroll);
+          }
+          if (!velocity && drag.autoScrollFrame) {
+            stopSetlistDragAutoScroll(drag);
+          }
+        }
+
+        function beginSetlistDrag(pendingDrag, event) {
+          if (state.dragSort || state.songs.length < 2) return;
+
+          const row = pendingDrag?.rowEl;
+          const songId = pendingDrag?.songId;
+          if (!row || !row.isConnected || !songId) return;
+
+          const originRect = row.getBoundingClientRect();
+          const placeholderEl = document.createElement("div");
+          placeholderEl.className = "song-row-placeholder";
+          placeholderEl.style.height = `${originRect.height}px`;
+          placeholderEl.setAttribute("aria-hidden", "true");
+
+          const overlayEl = row.cloneNode(true);
+          overlayEl.classList.add("song-drag-overlay");
+          overlayEl.removeAttribute("data-song-id");
+          overlayEl.setAttribute("aria-hidden", "true");
+          overlayEl.querySelectorAll("button").forEach((button) => {
+            button.tabIndex = -1;
+            button.setAttribute("aria-hidden", "true");
+          });
+
+          row.replaceWith(placeholderEl);
+          document.body.appendChild(overlayEl);
+          clearPendingSetlistDrag(pendingDrag.pointerId);
+
+          state.dragSort = {
+            pointerId: pendingDrag.pointerId,
+            songId,
+            originRect,
+            pointerOffsetY: pendingDrag.pointerOffsetY,
+            currentClientY: event.clientY,
+            travelDirection: pendingDrag.travelDirection || 0,
+            placeholderEl,
+            overlayEl,
+            autoScrollVelocity: 0,
+            autoScrollFrame: 0
+          };
+
+          document.body.classList.add("setlist-dragging");
+          els.setlistContainer.classList.add("is-drag-sorting");
+          positionDraggedSetlistOverlay(event.clientY);
+
+          moveSetlistPlaceholderToPointer(event.clientY);
+          event.preventDefault();
+        }
+
+        function maybeStartPendingSetlistDrag(event) {
+          const pending = state.pendingDragSort;
+          if (!pending || pending.pointerId !== event.pointerId) return false;
+
+          const distance = Math.hypot(event.clientX - pending.startClientX, event.clientY - pending.startClientY);
+          if (distance < SETLIST_DRAG_START_THRESHOLD_PX) {
+            return false;
+          }
+
+          beginSetlistDrag(pending, event);
+          return true;
+        }
+
+        function updateSetlistDrag(event) {
+          const drag = state.dragSort;
+          if (!drag || event.pointerId !== drag.pointerId) return;
+
+          const deltaY = event.clientY - drag.currentClientY;
+          if (Math.abs(deltaY) >= 0.5) {
+            drag.travelDirection = deltaY > 0 ? 1 : -1;
+          }
+          drag.currentClientY = event.clientY;
+          positionDraggedSetlistOverlay(event.clientY);
+          moveSetlistPlaceholderToPointer(event.clientY);
+          updateSetlistDragAutoScroll(event.clientY);
+          event.preventDefault();
+        }
+
+        function finishSetlistDrag(options = {}) {
+          const { cancel = false } = options;
+          const drag = state.dragSort;
+          if (!drag) return;
+
+          state.dragSort = null;
+          stopSetlistDragAutoScroll(drag);
+
+          const targetIndex = getSetlistPlaceholderIndex(drag.placeholderEl);
+          drag.overlayEl.remove();
+          drag.placeholderEl.remove();
+          document.body.classList.remove("setlist-dragging");
+          els.setlistContainer.classList.remove("is-drag-sorting");
+          state.setlistClickSuppressUntil = Date.now() + 180;
+
+          if (!cancel && targetIndex >= 0) {
+            reorderSongToIndex(drag.songId, targetIndex, { render: false });
+          }
+          renderSetlist();
         }
 
         function openClearConfirmModal() {
@@ -2643,8 +2930,82 @@
             closeTimeSignatureMenu();
           });
 
+          els.setlistContainer.addEventListener("pointerdown", (event) => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            if (event.target.closest(".song-delete")) return;
+
+            const row = event.target.closest(".setlist-row");
+            if (!row || !row.classList.contains("is-draggable")) return;
+
+            const songId = row.getAttribute("data-song-id");
+            if (!songId) return;
+
+            const rowRect = row.getBoundingClientRect();
+            state.pendingDragSort = {
+              pointerId: event.pointerId,
+              songId,
+              rowEl: row,
+              startClientX: event.clientX,
+              startClientY: event.clientY,
+              pointerOffsetY: event.clientY - rowRect.top
+            };
+          });
+
+          window.addEventListener(
+            "pointermove",
+            (event) => {
+              if (!state.dragSort) {
+                maybeStartPendingSetlistDrag(event);
+              }
+              updateSetlistDrag(event);
+            },
+            { passive: false }
+          );
+
+          window.addEventListener("pointerup", (event) => {
+            const drag = state.dragSort;
+            if (drag && event.pointerId === drag.pointerId) {
+              finishSetlistDrag();
+              return;
+            }
+
+            clearPendingSetlistDrag(event.pointerId);
+          });
+
+          window.addEventListener("pointercancel", (event) => {
+            const drag = state.dragSort;
+            if (drag && event.pointerId === drag.pointerId) {
+              finishSetlistDrag({ cancel: true });
+              return;
+            }
+
+            clearPendingSetlistDrag(event.pointerId);
+          });
+
+          window.addEventListener("blur", () => {
+            clearPendingSetlistDrag();
+            if (state.dragSort) {
+              finishSetlistDrag({ cancel: true });
+            }
+          });
+
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") {
+              clearPendingSetlistDrag();
+              if (state.dragSort) {
+                finishSetlistDrag({ cancel: true });
+              }
+            }
+          });
+
           document.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") return;
+
+            clearPendingSetlistDrag();
+            if (state.dragSort) {
+              finishSetlistDrag({ cancel: true });
+              return;
+            }
 
             if (!els.deleteConfirmModal.classList.contains("hidden")) {
               closeDeleteConfirmModal();
@@ -2677,6 +3038,11 @@
           });
 
           els.setlistContainer.addEventListener("click", (event) => {
+            if (Date.now() < state.setlistClickSuppressUntil) {
+              event.preventDefault();
+              return;
+            }
+
             const card = event.target.closest("[data-song-id]");
             if (!card) return;
 

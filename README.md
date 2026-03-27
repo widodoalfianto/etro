@@ -11,7 +11,7 @@ It keeps the main controls large, the setlist close at hand, and the timing stab
 ## Highlights
 
 - Web Audio `currentTime` scheduler for steadier timing
-- Setlist workflow with add, select, delete, and reset
+- Setlist workflow with add, reorder, select, delete, and reset
 - BPM range `20-240`
 - Time signatures: `4/4`, `6/8`, `3/4`, and custom
 - Custom signatures support top values `1-32` and bottom values `2`, `4`, `8`, or `16` such as `13/16`

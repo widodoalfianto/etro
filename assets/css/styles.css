@@ -457,6 +457,50 @@
         gap: 0.5rem;
       }
 
+      #setlistContainer {
+        position: relative;
+        overscroll-behavior: contain;
+      }
+
+      .setlist-row.is-draggable .song-select {
+        cursor: grab;
+        touch-action: none;
+      }
+
+      .setlist-row.is-draggable .song-select:active {
+        cursor: grabbing;
+      }
+
+      body.setlist-dragging {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .song-row-placeholder {
+        min-height: 3.6rem;
+        border-radius: 0.8rem;
+        border: 1px dashed rgba(163, 230, 53, 0.48);
+        background:
+          linear-gradient(180deg, rgba(163, 230, 53, 0.12), rgba(163, 230, 53, 0.04)),
+          rgba(23, 23, 23, 0.72);
+        box-shadow: inset 0 0 0 1px rgba(163, 230, 53, 0.08);
+      }
+
+      .song-drag-overlay {
+        position: fixed;
+        z-index: 70;
+        margin: 0;
+        pointer-events: none;
+        opacity: 0.98;
+        transform: rotate(-1deg) scale(1.01);
+        filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.42));
+      }
+
+      .song-drag-overlay .song-select,
+      .song-drag-overlay .song-delete {
+        box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.22) inset, 0 10px 28px rgba(0, 0, 0, 0.2);
+      }
+
       .song-pill {
         display: inline-flex;
         min-height: 1.1rem;
@@ -865,6 +909,14 @@
       .mobile-mode #accentMapPanel {
         margin-top: 0.6rem;
         max-width: none;
+      }
+
+      .mobile-mode .setlist-row {
+        gap: 0.38rem;
+      }
+
+      .mobile-mode .song-delete {
+        min-width: 2.9rem;
       }
 
       .mobile-mode .bpm-roller-label {
