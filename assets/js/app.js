@@ -28,6 +28,7 @@
         const SETLIST_DRAG_START_THRESHOLD_PX = 8;
         const SETLIST_DRAG_SWITCH_RATIO_DOWN = 0.24;
         const SETLIST_DRAG_SWITCH_RATIO_UP = 0.82;
+        const TRANSPORT_TICKS_PER_BEAT = 2;
 
         function makeId() {
           if (window.crypto && typeof window.crypto.randomUUID === "function") {
@@ -66,7 +67,7 @@
           lastScheduledNoteTime: 0,
           lastScheduledBeat: 0,
           lastScheduledSubdivision: 0,
-          lastScheduledTicksPerBeat: 1,
+          lastScheduledTicksPerBeat: TRANSPORT_TICKS_PER_BEAT,
           currentBeat: 0,
           currentSubdivision: 0,
           activeBeatsPerBar: 4,
@@ -2167,9 +2168,6 @@
           saveSongs();
           renderLiveStateWithSetlistRows([active.id]);
 
-          if (state.isPlaying && nextDoubleTime !== activeDoubleTime) {
-            refreshPlayingTransport();
-          }
           return true;
         }
 
@@ -2211,8 +2209,12 @@
           updateActiveSongRhythmOptions({ useAccents: true, accentBeats: nextAccentBeats });
         }
 
-        function getTicksPerBeat(song) {
-          return song?.doubleTime ? 2 : 1;
+        function getTicksPerBeat() {
+          return TRANSPORT_TICKS_PER_BEAT;
+        }
+
+        function shouldPlayTickForSong(song, subdivisionIndex) {
+          return subdivisionIndex === 0 || toBoolean(song?.doubleTime);
         }
 
         function getSecondsPerBeatForSong(song) {
@@ -2602,6 +2604,7 @@
 
           const parsed = parseTimeSignature(active.timeSignature);
           const isPrimaryTick = subdivisionIndex === 0;
+          const shouldPlayTick = shouldPlayTickForSong(active, subdivisionIndex);
           const isAccented = isPrimaryTick && isAccentStepInBar(beatInBar, active, parsed);
           const pulseTone = isAccented ? "accent" : "beat";
           const pulseBeatNumber = isPrimaryTick ? beatInBar + 1 : null;
@@ -2609,6 +2612,8 @@
           state.lastScheduledBeat = beatInBar;
           state.lastScheduledSubdivision = subdivisionIndex;
           state.lastScheduledTicksPerBeat = getTicksPerBeat(active);
+          if (!shouldPlayTick) return;
+
           scheduleClick(noteTime, isAccented);
           queueBeatIndicatorPulse(noteTime, pulseBeatNumber, pulseTone);
         }
