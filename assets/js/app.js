@@ -41,7 +41,7 @@
           return {
             id: makeId(),
             name: "",
-            bpm: 120,
+            bpm: 72,
             timeSignature: defaultSignature,
             useAccents: false,
             doubleTime: false,
