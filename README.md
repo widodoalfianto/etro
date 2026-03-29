@@ -66,7 +66,7 @@ On first load and after reset:
 
 - 1 song
 - Empty title (shown as `Untitled` in the main view)
-- BPM `120`
+- BPM `72`
 - Time signature `4/4`
 - Accent off
 - Double Time off
@@ -119,4 +119,5 @@ Bug reports and feature requests are also welcome in Issues.
 ## Browser notes
 
 - Audio starts after user interaction because of browser autoplay policy
+- On iPhone/iPad, Silent Mode playback for Web Audio depends on `navigator.audioSession` support; modern Safari/WebKit releases support `playback` audio-session mode, older iOS versions may still mute web audio
 - Wake Lock support depends on browser and device
