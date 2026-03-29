@@ -17,6 +17,9 @@
           normal: "./assets/audio/Metronome.wav",
           accent: "./assets/audio/MetronomeUp.wav"
         };
+        const CLICK_SAMPLE_GAIN = 2.1;
+        const CLICK_OSCILLATOR_GAIN_NORMAL = 0.4;
+        const CLICK_OSCILLATOR_GAIN_ACCENT = 0.58;
         const TAP_TEMPO_MIN_TAPS = 2;
         const TAP_TEMPO_MAX_INTERVALS = 6;
         const TAP_TEMPO_RESET_MS = 2200;
@@ -2416,6 +2419,21 @@
           }
         }
 
+        function configurePlaybackAudioSession() {
+          const audioSession = navigator.audioSession;
+          if (!audioSession || typeof audioSession !== "object") return false;
+
+          try {
+            if (audioSession.type !== "playback") {
+              audioSession.type = "playback";
+            }
+            return audioSession.type === "playback";
+          } catch (error) {
+            console.warn("Could not switch audio session to playback mode.", error);
+            return false;
+          }
+        }
+
         function decodeAudioBuffer(audioData) {
           return new Promise((resolve, reject) => {
             let settled = false;
@@ -2487,7 +2505,10 @@
           oscillator.frequency.value = isAccented ? 1900 : 1300;
 
           gainNode.gain.setValueAtTime(0.0001, noteTime);
-          gainNode.gain.exponentialRampToValueAtTime(isAccented ? 0.28 : 0.18, noteTime + 0.001);
+          gainNode.gain.exponentialRampToValueAtTime(
+            isAccented ? CLICK_OSCILLATOR_GAIN_ACCENT : CLICK_OSCILLATOR_GAIN_NORMAL,
+            noteTime + 0.001
+          );
           gainNode.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.04);
 
           oscillator.connect(gainNode);
@@ -2506,7 +2527,7 @@
           const gainNode = ctx.createGain();
 
           source.buffer = buffer;
-          gainNode.gain.value = 1;
+          gainNode.gain.value = CLICK_SAMPLE_GAIN;
 
           source.connect(gainNode);
           gainNode.connect(ctx.destination);
@@ -2633,6 +2654,7 @@
           const active = getActiveSong();
           if (!active || state.isPlaying) return;
 
+          configurePlaybackAudioSession();
           await ensureAudioContext();
           await ensureClickBuffers();
           const parsed = parseTimeSignature(active.timeSignature);
